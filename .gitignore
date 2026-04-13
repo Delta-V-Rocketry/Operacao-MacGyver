@@ -9,6 +9,7 @@ frontend/node_modules/
 # VSCode
 .vscode/
 .env
+__pycache__/
 
 venv/
 _pycache_/
