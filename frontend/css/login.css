@@ -55,7 +55,7 @@ body { font-family: sans-serif; }
 .field-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.4rem; }
 .remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.4); cursor: pointer; }
 .remember input[type=checkbox] { accent-color: #E8601A; width: 14px; height: 14px; }
-.forgot { font-size: 13px; color: #E8601A; cursor: pointer; }
+
 
 .btn-primary { width: 100%; padding: 0.82rem; background: #E8601A; border: none; border-radius: 8px; color: #fff; font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.1s; }
 .btn-primary:hover { background: #F4813B; }
