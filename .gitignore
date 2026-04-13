@@ -8,3 +8,6 @@ frontend/node_modules/
 
 # VSCode
 .vscode/
+
+venv/
+_pycache_/
