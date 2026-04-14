@@ -169,8 +169,8 @@ const DB = {
   ];
 
   const members = [
-    { name:'Marcos Costa',   email:'vini@delta.com',   password:'admin123', role:'Líder do setor', sector:'Propulsão', isAdmin:true,  color:COLORS[0] },
-    { name:'Ana Lopes',      email:'luiz@delta.com',      password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[1] },
+    { name:'Vinicius Chaves',   email:'vini@delta.com',   password:'admin123', role:'Líder do setor', sector:'Aviônica', isAdmin:true,  color:COLORS[0] },
+    { name:'Luiz Eduardo',      email:'luiz@delta.com',      password:'senha123', role:'Membro',         sector:'Aviônica', isAdmin:false, color:COLORS[1] },
     { name:'Pedro Ribeiro',  email:'pedro@delta.com',    password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[2] },
     { name:'Isabela Mendes', email:'isabela@delta.com',  password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[3] },
     { name:'Thiago Souza',   email:'thiago@delta.com',   password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[4] },
