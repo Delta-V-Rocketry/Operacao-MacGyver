@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delta Rockets · Painel</title>
+  <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+
+<!-- ═══════ SIDEBAR ═══════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-logo">🚀</div>
+    <div class="sidebar-brand-text">
+      <h2>Delta Rockets</h2>
+      <span>Sistema de Gestão</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Principal</div>
+
+    <a class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+      <span class="nav-icon">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </span>
+      Dashboard
+    </a>
+
+    <a class="nav-item" data-page="demandas" onclick="switchPage('demandas')">
+      <span class="nav-icon">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6m-6 4h4"/></svg>
+      </span>
+      Demandas
+      <span class="nav-badge">5</span>
+    </a>
+
+    <div class="nav-section-label" style="margin-top: 0.5rem;">Equipe</div>
+
+    <a class="nav-item" data-page="calendario" onclick="switchPage('calendario')">
+      <span class="nav-icon">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </span>
+      Calendário
+    </a>
+
+    <a class="nav-item" data-page="membros" onclick="switchPage('membros')">
+      <span class="nav-icon">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </span>
+      Membros
+    </a>
+
+    <div class="nav-section-label" style="margin-top: 0.5rem;">Entregas</div>
+
+    <a class="nav-item" data-page="relatorios" onclick="switchPage('relatorios')">
+      <span class="nav-icon">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </span>
+      Relatórios
+      <span class="nav-badge nav-badge-pink">2</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="avatar">MC</div>
+    <div class="sidebar-footer-info">
+      <div class="name">Marcos Costa</div>
+      <div class="role">Líder · Propulsão</div>
+    </div>
+    <a class="sidebar-logout" href="login.html" title="Sair">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+    </a>
+  </div>
+</aside>
+
+<!-- ═══════ MAIN ═══════ -->
+<div class="main">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <h1 id="page-title">Dashboard</h1>
+      <span class="sector-badge">Propulsão</span>
+    </div>
+    <div class="header-right">
+      <button class="header-btn" title="Buscar">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="header-btn" title="Notificações">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot"></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════════ -->
+    <!-- DASHBOARD                          -->
+    <!-- ═══════════════════════════════════ -->
+    <section class="page-section active" id="page-dashboard">
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label"><span class="stat-icon icon-orange">📋</span> Demandas ativas</div>
+          <div class="stat-value">12</div>
+          <div class="stat-change color-orange">+3 esta semana</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><span class="stat-icon icon-green">✓</span> Concluídas</div>
+          <div class="stat-value">38</div>
+          <div class="stat-change color-green">87% no prazo</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><span class="stat-icon icon-pink">📄</span> Relatórios pendentes</div>
+          <div class="stat-value">2</div>
+          <div class="stat-change color-red">Prazo: sexta 18h</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><span class="stat-icon icon-purple">👥</span> Membros do setor</div>
+          <div class="stat-value">8</div>
+          <div class="stat-change color-muted">100% ativos</div>
+        </div>
+      </div>
+
+      <!-- 2 colunas -->
+      <div class="grid-2">
+
+        <!-- Demandas recentes -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Demandas recentes</span>
+            <a class="card-action" onclick="switchPage('demandas')">Ver todas →</a>
+          </div>
+          <div class="card-body">
+            <div class="task-item">
+              <div class="task-priority" style="background: var(--red);"></div>
+              <div class="task-info">
+                <div class="task-name">Simulação de pressão na câmara</div>
+                <div class="task-meta">Vence hoje · Marcos C.</div>
+              </div>
+              <span class="task-status status-urgente">Urgente</span>
+            </div>
+            <div class="task-item">
+              <div class="task-priority" style="background: var(--yellow);"></div>
+              <div class="task-info">
+                <div class="task-name">Revisão do sistema de alimentação</div>
+                <div class="task-meta">Amanhã · Ana L.</div>
+              </div>
+              <span class="task-status status-progresso">Em progresso</span>
+            </div>
+            <div class="task-item">
+              <div class="task-priority" style="background: var(--green);"></div>
+              <div class="task-info">
+                <div class="task-name">Documentação do teste estático #4</div>
+                <div class="task-meta">Quinta · Pedro R.</div>
+              </div>
+              <span class="task-status status-concluida">Concluída</span>
+            </div>
+            <div class="task-item">
+              <div class="task-priority" style="background: var(--purple);"></div>
+              <div class="task-info">
+                <div class="task-name">Projeto do injetor v2</div>
+                <div class="task-meta">Sexta · Isabela M.</div>
+              </div>
+              <span class="task-status status-revisao">Em revisão</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Atividades recentes -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Atividades recentes</span>
+          </div>
+          <div class="card-body">
+            <div class="activity-item">
+              <div class="activity-dot" style="background: var(--green);"></div>
+              <div>
+                <div class="activity-text"><strong>Ana L.</strong> concluiu "Revisão de bocal"</div>
+                <div class="activity-time">há 20 min</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-dot" style="background: var(--pink);"></div>
+              <div>
+                <div class="activity-text"><strong>Pedro R.</strong> entregou relatório semanal</div>
+                <div class="activity-time">há 1h</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-dot" style="background: var(--accent);"></div>
+              <div>
+                <div class="activity-text"><strong>Marcos C.</strong> criou demanda "Simulação de pressão"</div>
+                <div class="activity-time">há 2h</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-dot" style="background: var(--purple);"></div>
+              <div>
+                <div class="activity-text"><strong>Isabela M.</strong> comentou em "Projeto do injetor v2"</div>
+                <div class="activity-time">há 3h</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-dot" style="background: var(--yellow);"></div>
+              <div>
+                <div class="activity-text"><strong>Sistema</strong> abriu novo ciclo de relatórios</div>
+                <div class="activity-time">hoje, 08:00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════ -->
+    <!-- DEMANDAS (Kanban)                  -->
+    <!-- ═══════════════════════════════════ -->
+    <section class="page-section" id="page-demandas">
+      <div class="page-toolbar">
+        <div class="page-toolbar-info">5 tarefas ativas no setor Propulsão</div>
+        <button class="btn btn-primary-action">+ Nova demanda</button>
+      </div>
+
+      <div class="kanban">
+
+        <!-- A fazer -->
+        <div class="kanban-col">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">
+              <span class="kanban-dot" style="background: var(--text-muted);"></span>
+              A fazer <span class="kanban-count">2</span>
+            </span>
+          </div>
+          <div class="kanban-card">
+            <div class="kanban-card-title">Projeto do injetor v2</div>
+            <div class="kanban-tags"><span class="kanban-tag tag-alta">Alta</span></div>
+            <div class="kanban-card-meta"><span>📅 Sexta</span><span>· Isabela M.</span></div>
+          </div>
+          <div class="kanban-card">
+            <div class="kanban-card-title">Levantamento de materiais</div>
+            <div class="kanban-tags"><span class="kanban-tag tag-media">Média</span></div>
+            <div class="kanban-card-meta"><span>📅 Seg, 21/04</span><span>· Thiago S.</span></div>
+          </div>
+        </div>
+
+        <!-- Em progresso -->
+        <div class="kanban-col">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">
+              <span class="kanban-dot" style="background: var(--accent);"></span>
+              Em progresso <span class="kanban-count">2</span>
+            </span>
+          </div>
+          <div class="kanban-card">
+            <div class="kanban-card-title">Simulação de pressão na câmara</div>
+            <div class="kanban-tags"><span class="kanban-tag tag-urgente">Urgente</span></div>
+            <div class="kanban-card-meta"><span>📅 Hoje</span><span>· Marcos C.</span></div>
+          </div>
+          <div class="kanban-card">
+            <div class="kanban-card-title">Revisão do sistema de alimentação</div>
+            <div class="kanban-tags"><span class="kanban-tag tag-media">Média</span></div>
+            <div class="kanban-card-meta"><span>📅 Amanhã</span><span>· Ana L.</span></div>
+          </div>
+        </div>
+
+        <!-- Em revisão -->
+        <div class="kanban-col">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">
+              <span class="kanban-dot" style="background: var(--purple);"></span>
+              Em revisão <span class="kanban-count">1</span>
+            </span>
+          </div>
+          <div class="kanban-card">
+            <div class="kanban-card-title">Cálculo de Isp do motor K450</div>
+            <div class="kanban-tags"><span class="kanban-tag tag-normal">Normal</span></div>
+            <div class="kanban-card-meta"><span>📅 Qui</span><span>· Lucas F.</span></div>
+          </div>
+        </div>
+
+        <!-- Concluídas -->
+        <div class="kanban-col">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">
+              <span class="kanban-dot" style="background: var(--green);"></span>
+              Concluídas <span class="kanban-count">3</span>
+            </span>
+          </div>
+          <div class="kanban-card done">
+            <div class="kanban-card-title">Documentação do teste estático #4</div>
+            <div class="kanban-card-meta"><span>✓ Pedro R.</span></div>
+          </div>
+          <div class="kanban-card done">
+            <div class="kanban-card-title">Revisão de bocal convergente</div>
+            <div class="kanban-card-meta"><span>✓ Ana L.</span></div>
+          </div>
+          <div class="kanban-card done">
+            <div class="kanban-card-title">Análise de empuxo teórico</div>
+            <div class="kanban-card-meta"><span>✓ Marcos C.</span></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════ -->
+    <!-- CALENDÁRIO                         -->
+    <!-- ═══════════════════════════════════ -->
+    <section class="page-section" id="page-calendario">
+      <div class="page-toolbar">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="btn btn-ghost" onclick="changeMonth(-1)">←</button>
+          <span id="cal-month" class="cal-month-label"></span>
+          <button class="btn btn-ghost" onclick="changeMonth(1)">→</button>
+        </div>
+        <button class="btn btn-primary-action">+ Novo evento</button>
+      </div>
+      <div class="calendar-grid" id="calendar"></div>
+    </section>
+
+    <!-- ═══════════════════════════════════ -->
+    <!-- MEMBROS                            -->
+    <!-- ═══════════════════════════════════ -->
+    <section class="page-section" id="page-membros">
+      <div class="page-toolbar">
+        <div class="page-toolbar-info">8 membros ativos no setor Propulsão</div>
+        <button class="btn btn-primary-action">+ Convidar membro</button>
+      </div>
+
+      <div class="members-grid">
+        <div class="member-card">
+          <div class="member-avatar" style="background: linear-gradient(135deg, #E8601A, #F4813B);">MC</div>
+          <div class="member-name">Marcos Costa</div>
+          <div class="member-role">Líder do setor</div>
+          <span class="member-sector">Propulsão</span>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background: linear-gradient(135deg, #5DCAA5, #3CB389);">AL</div>
+          <div class="member-name">Ana Lopes</div>
+          <div class="member-role">Membro</div>
+          <span class="member-sector">Propulsão</span>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background: linear-gradient(135deg, #AFA9EC, #8B83D9);">PR</div>
+          <div class="member-name">Pedro Ribeiro</div>
+          <div class="member-role">Membro</div>
+          <span class="member-sector">Propulsão</span>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background: linear-gradient(135deg, #ED93B1, #D46B8E);">IM</div>
+          <div class="member-name">Isabela Mendes</div>
+          <div class="member-role">Membro</div>
+          <span class="member-sector">Propulsão</span>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background: linear-gradient(135deg, #EF9F27, #D48A15);">TS</div>
+          <div class="member-name">Thiago Souza</div>
+          <div class="member-role">Membro</div>
+          <span class="member-sector">Propulsão</span>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background: linear-gradient(135deg, #85B7EB, #5A96D4);">LF</div>
+          <div class="member-name">Lucas Ferreira</div>
+          <div class="member-role">Membro</div>
+          <span class="member-sector">Propulsão</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════ -->
+    <!-- RELATÓRIOS SEMANAIS                -->
+    <!-- ═══════════════════════════════════ -->
+    <section class="page-section" id="page-relatorios">
+      <div class="reports-header">
+        <div class="report-tabs">
+          <button class="report-tab active">Semana atual</button>
+          <button class="report-tab">Anteriores</button>
+          <button class="report-tab">Meus relatórios</button>
+        </div>
+        <button class="btn btn-primary-action">+ Criar relatório</button>
+      </div>
+
+      <!-- Tabela do ciclo -->
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <span class="card-title">Ciclo semanal — Semana 16 (14/04 – 18/04)</span>
+          <span class="color-red" style="font-size: 12px;">⏰ Prazo: sexta, 18:00</span>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <table class="reports-table">
+            <thead>
+              <tr>
+                <th>Membro</th>
+                <th>Setor</th>
+                <th>Status</th>
+                <th>Entrega</th>
+                <th>Avaliação</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">Ana Lopes</td>
+                <td>Propulsão</td>
+                <td><span class="status-badge status-avaliado">Avaliado</span></td>
+                <td>14/04, 09:32</td>
+                <td class="color-green">✓ Aprovado</td>
+              </tr>
+              <tr>
+                <td class="td-name">Pedro Ribeiro</td>
+                <td>Propulsão</td>
+                <td><span class="status-badge status-entregue">Entregue</span></td>
+                <td>14/04, 11:15</td>
+                <td class="color-muted">Aguardando</td>
+              </tr>
+              <tr>
+                <td class="td-name">Isabela Mendes</td>
+                <td>Propulsão</td>
+                <td><span class="status-badge status-pendente">Pendente</span></td>
+                <td class="color-muted">—</td>
+                <td class="color-muted">—</td>
+              </tr>
+              <tr>
+                <td class="td-name">Thiago Souza</td>
+                <td>Propulsão</td>
+                <td><span class="status-badge status-pendente">Pendente</span></td>
+                <td class="color-muted">—</td>
+                <td class="color-muted">—</td>
+              </tr>
+              <tr>
+                <td class="td-name">Lucas Ferreira</td>
+                <td>Propulsão</td>
+                <td><span class="status-badge status-atrasado">Atrasado</span></td>
+                <td class="color-red">Semana anterior</td>
+                <td class="color-muted">—</td>
+              </tr>
+              <tr>
+                <td class="td-name">Marcos Costa</td>
+                <td>Propulsão</td>
+                <td><span class="status-badge status-entregue">Entregue</span></td>
+                <td>13/04, 22:48</td>
+                <td class="color-muted">Aguardando</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Fluxo visual -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Fluxo de entrega</span>
+        </div>
+        <div class="card-body">
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="flow-icon icon-pink">📝</div>
+              <div class="flow-label">Líder cria</div>
+              <div class="flow-sub">Abre relatório</div>
+            </div>
+            <div class="flow-line"></div>
+            <div class="flow-step">
+              <div class="flow-icon icon-purple">✏️</div>
+              <div class="flow-label">Membro edita</div>
+              <div class="flow-sub">Preenche e anexa</div>
+            </div>
+            <div class="flow-line"></div>
+            <div class="flow-step">
+              <div class="flow-icon icon-green">📤</div>
+              <div class="flow-label">Entrega</div>
+              <div class="flow-sub">Envia ao líder</div>
+            </div>
+            <div class="flow-line"></div>
+            <div class="flow-step">
+              <div class="flow-icon icon-yellow">⭐</div>
+              <div class="flow-label">Avaliação</div>
+              <div class="flow-sub">Líder avalia</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </div><!-- .content -->
+</div><!-- .main -->
+
+<script src="../js/dashboard.js"></script>
+</body>
+</html>
