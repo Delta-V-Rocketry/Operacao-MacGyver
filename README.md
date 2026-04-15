@@ -1,8 +1,10 @@
 # Operação MacGyver
 
 > Projeto interno da **DeltaV Rocketry**.
-Liderado por: Vinicius Chaves e Luiz Eduardo Lima
-Desenvolvido por: Aviônica DeltaV Rocketry
+
+> Liderado por: Vinicius Chaves e Luiz Eduardo Lima
+
+> Desenvolvido por: Aviônica DeltaV Rocketry
 
 ## Visão Geral
 
