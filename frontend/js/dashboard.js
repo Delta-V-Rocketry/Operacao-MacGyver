@@ -1,48 +1,78 @@
 /* ═══════════════════════════════════════════════════════════
    Delta Rockets · Dashboard — Lógica dinâmica
+   ───────────────────────────────────────────────────────────
+   Permissões:
+   • Admin  → CRUD completo: demandas, membros, eventos,
+              metas, relatórios, painel de administração
+   • User   → Leitura geral + entrega dos próprios
+              relatórios + atualizar status das suas demandas
    ═══════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════════════════
-   AUTH GUARD — redireciona se não logado
-   FUTURO: validar token JWT com o backend
+   AUTH GUARD
    ══════════════════════════════════════════════════════════ */
 const session = DB.getSession();
 if (!session) window.location.href = 'login.html';
 
-/* ── Preencher dados do usuário logado na sidebar ───────── */
+/* Helper de permissão — use em qualquer lugar */
+const isAdmin = () => !!DB.getSession()?.isAdmin;
+const currentUser = () => DB.getSession();
+
+/* ── Sidebar: dados do usuário logado ───────────────────── */
 function renderSidebarUser() {
   const u = DB.getSession();
   if (!u) return;
   document.querySelector('.sidebar-footer .name').textContent = u.name;
   document.querySelector('.sidebar-footer .role').textContent = (u.role || 'Membro') + ' · ' + (u.sector || '');
-  document.querySelector('.sidebar-footer .avatar').textContent = getInitials(u.name);
-  document.querySelector('.sidebar-footer .avatar').style.background = u.color || avatarColor(u.id);
+  const av = document.querySelector('.sidebar-footer .avatar');
+  av.textContent = getInitials(u.name);
+  av.style.background = u.color || avatarColor(u.id);
   document.querySelector('.sector-badge').textContent = u.sector || 'Geral';
 
-  // Mostrar item "Administração" apenas para admins
-  const adminNav = document.querySelector('.nav-item[data-page="admin"]');
-  if (adminNav) adminNav.style.display = u.isAdmin ? 'flex' : 'none';
+  // Mostrar item "Administração" e "Metas" apenas para admins
+  document.querySelector('.nav-item[data-page="admin"]').style.display = u.isAdmin ? 'flex' : 'none';
+  document.querySelector('.nav-item[data-page="metas"]').style.display = u.isAdmin ? 'flex' : 'none';
+
+  // Badge de perfil admin
+  if (u.isAdmin) {
+    const badge = document.createElement('span');
+    badge.className = 'admin-badge-sidebar';
+    badge.textContent = 'Admin';
+    const footer = document.querySelector('.sidebar-footer');
+    if (!footer.querySelector('.admin-badge-sidebar')) footer.appendChild(badge);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
    NAVEGAÇÃO
    ══════════════════════════════════════════════════════════ */
 function switchPage(page) {
+  // Bloquear páginas restritas para não-admins
+  if (!isAdmin() && ['admin', 'metas'].includes(page)) {
+    toast('Acesso restrito a administradores.', 'error');
+    return;
+  }
+
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
   const target = document.querySelector(`.nav-item[data-page="${page}"]`);
   if (target) target.classList.add('active');
   const section = document.getElementById('page-' + page);
   if (section) section.classList.add('active');
-  const titles = { dashboard:'Dashboard', demandas:'Demandas', calendario:'Calendário',
-    membros:'Membros', relatorios:'Relatórios Semanais', admin:'Administração' };
+
+  const titles = {
+    dashboard:'Dashboard', demandas:'Demandas', calendario:'Calendário',
+    membros:'Membros', relatorios:'Relatórios Semanais',
+    metas:'Metas da Equipe', admin:'Administração'
+  };
   document.getElementById('page-title').textContent = titles[page] || page;
   document.getElementById('sidebar').classList.remove('open');
 
-  // Renderizar seção ao entrar
-  const renders = { dashboard: renderDashboard, demandas: renderKanban,
+  const renders = {
+    dashboard: renderDashboard, demandas: renderKanban,
     calendario: renderCalendar, membros: renderMembers,
-    relatorios: renderReports, admin: renderAdmin };
+    relatorios: renderReports, metas: renderGoals, admin: renderAdmin
+  };
   if (renders[page]) renders[page]();
 }
 
@@ -56,22 +86,47 @@ function renderDashboard() {
   const members    = DB.getMembers();
   const reports    = DB.getReports();
   const activities = DB.getActivities();
+  const goals      = DB.getGoals();
+  const u          = currentUser();
 
-  const active   = demands.filter(d => d.status !== 'done').length;
-  const done     = demands.filter(d => d.status === 'done').length;
-  const pending  = reports.filter(r => r.status === 'pendente' || r.status === 'atrasado').length;
+  // Para usuário comum, mostrar só as demandas dele
+  const myDemands  = isAdmin() ? demands : demands.filter(d => d.assigneeId === u?.id);
+  const active     = myDemands.filter(d => d.status !== 'done').length;
+  const done       = myDemands.filter(d => d.status === 'done').length;
 
-  // Stats
+  // Para relatórios: admin vê pendentes geral, user vê só os seus
+  const myReports  = isAdmin() ? reports : reports.filter(r => r.memberId === u?.id);
+  const pending    = myReports.filter(r => r.status === 'pendente' || r.status === 'atrasado').length;
+
   document.getElementById('stat-active').textContent  = active;
   document.getElementById('stat-done').textContent    = done;
   document.getElementById('stat-reports').textContent = pending;
   document.getElementById('stat-members').textContent = members.filter(m => m.active).length;
 
-  // Demandas recentes (últimas 4 não concluídas)
-  const recent = demands.filter(d => d.status !== 'done').slice(0, 4);
+  // Label do stat de demandas muda conforme perfil
+  const statActiveLabel = document.querySelector('#stat-active')?.closest('.stat-card')?.querySelector('.stat-change');
+  if (statActiveLabel) statActiveLabel.textContent = isAdmin() ? 'do setor' : 'atribuídas a mim';
+
+  // Metas em destaque no dashboard (top 2)
+  const activeGoals = goals.filter(g => g.status === 'ativa').slice(0, 2);
+  const goalsHtml = activeGoals.length ? activeGoals.map(g => `
+    <div class="goal-mini">
+      <div class="goal-mini-header">
+        <span class="goal-mini-title">${g.title}</span>
+        <span class="goal-mini-pct">${g.progress}%</span>
+      </div>
+      <div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%;background:${g.progress>=80?'var(--green)':g.progress>=40?'var(--yellow)':'var(--accent)'}"></div></div>
+      <div class="goal-mini-meta">${g.category} · prazo ${g.dueDate ? new Date(g.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—'}</div>
+    </div>`).join('') : '<p style="color:var(--text-muted);font-size:13px;padding:.5rem 0">Sem metas ativas.</p>';
+
+  document.getElementById('dashboard-goals').innerHTML = goalsHtml;
+
+  // Demandas recentes
+  const recent = myDemands.filter(d => d.status !== 'done').slice(0, 4);
   const PRIORITY_COLOR = { urgente:'var(--red)', alta:'var(--red)', media:'var(--yellow)', normal:'var(--green)' };
-  const STATUS_CLASS    = { inprogress:'status-progresso', review:'status-revisao', todo:'status-revisao' };
-  const STATUS_LABEL    = { inprogress:'Em progresso', review:'Em revisão', todo:'A fazer' };
+  const STATUS_CLASS   = { inprogress:'status-progresso', review:'status-revisao', todo:'status-revisao' };
+  const STATUS_LABEL   = { inprogress:'Em progresso', review:'Em revisão', todo:'A fazer' };
+
   document.getElementById('recent-demands').innerHTML = recent.map(d => {
     const assignee = DB.getMemberById(d.assigneeId);
     const aName    = assignee ? assignee.name.split(' ')[0] + ' ' + (assignee.name.split(' ').pop()[0] || '') + '.' : '—';
@@ -96,11 +151,11 @@ function renderDashboard() {
       </div>
     </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma atividade registrada.</p>';
 
-  // Badge demandas na sidebar
+  // Badges sidebar
   const badge = document.querySelector('.nav-item[data-page="demandas"] .nav-badge');
-  if (badge) badge.textContent = active;
+  if (badge) badge.textContent = demands.filter(d => d.status !== 'done').length;
   const badgeR = document.querySelector('.nav-item[data-page="relatorios"] .nav-badge-pink');
-  if (badgeR) badgeR.textContent = pending || '';
+  if (badgeR) { const p = reports.filter(r => r.status === 'pendente' || r.status === 'atrasado').length; badgeR.textContent = p || ''; }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -116,39 +171,93 @@ const PRIORITY_COLOR = { urgente:'var(--red)', alta:'var(--red)', media:'var(--y
 const PRIORITY_CLASS  = { urgente:'tag-urgente', alta:'tag-alta', media:'tag-media', normal:'tag-normal', baixa:'tag-normal' };
 
 function renderKanban() {
+  const u       = currentUser();
   const demands = DB.getDemands();
+  const visible = isAdmin() ? demands : demands; // user vê tudo mas só edita as suas
+
   document.querySelector('#page-demandas .page-toolbar-info').textContent =
-    `${demands.filter(d=>d.status!=='done').length} tarefas ativas · ${DB.getSession()?.sector || 'Geral'}`;
+    `${demands.filter(d => d.status !== 'done').length} tarefas ativas · ${u?.sector || 'Geral'}`;
+
+  // Toolbar: admin vê botão criar, user não
+  const btnNew = document.getElementById('btn-new-demand');
+  if (btnNew) btnNew.style.display = isAdmin() ? 'flex' : 'none';
+
+  // Filtro de visão (admin: todos / user: toggle)
+  const filterBar = document.getElementById('demand-filter-bar');
+  if (filterBar) filterBar.style.display = 'flex';
+
+  const filterVal = document.getElementById('demand-filter')?.value || 'all';
+  let filtered = visible;
+  if (filterVal === 'mine') filtered = visible.filter(d => d.assigneeId === u?.id);
 
   const grid = document.getElementById('kanban-grid');
   grid.innerHTML = KANBAN_COLS.map(col => {
-    const cards = demands.filter(d => d.status === col.id);
+    const cards = filtered.filter(d => d.status === col.id);
     const cardsHtml = cards.map(d => {
-      const assignee = DB.getMemberById(d.assigneeId);
-      const aName    = assignee ? assignee.name.split(' ')[0] + ' ' + (assignee.name.split(' ').slice(-1)[0][0]||'') + '.' : '—';
-      const due      = d.dueDate ? new Date(d.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—';
-      return `<div class="kanban-card ${col.id==='done'?'done':''}" data-id="${d.id}">
+      const assignee  = DB.getMemberById(d.assigneeId);
+      const aName     = assignee ? assignee.name.split(' ')[0] + ' ' + (assignee.name.split(' ').slice(-1)[0][0]||'') + '.' : '—';
+      const due       = d.dueDate ? new Date(d.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—';
+      const isOverdue = d.dueDate && new Date(d.dueDate) < new Date() && d.status !== 'done';
+      const isMine    = d.assigneeId === u?.id;
+
+      // Admin: editar/deletar tudo | User: só mover as suas
+      let actionsHtml = '';
+      if (isAdmin()) {
+        actionsHtml = `<span class="kanban-card-actions">
+          <button onclick="editDemand(${d.id})" title="Editar">✏</button>
+          <button onclick="deleteDemandConfirm(${d.id})" title="Excluir">🗑</button>
+        </span>`;
+      } else if (isMine && col.id !== 'done') {
+        actionsHtml = `<span class="kanban-card-actions">
+          <button onclick="moveDemand(${d.id})" title="Atualizar status" class="btn-move">↗ Mover</button>
+        </span>`;
+      }
+
+      return `<div class="kanban-card ${col.id==='done'?'done':''} ${isOverdue?'overdue':''}" data-id="${d.id}">
         <div class="kanban-card-title">${d.title}</div>
         ${col.id !== 'done' ? `<div class="kanban-tags"><span class="kanban-tag ${PRIORITY_CLASS[d.priority]||'tag-normal'}">${d.priority||'normal'}</span></div>` : ''}
         <div class="kanban-card-meta">
-          <span>${col.id==='done'?'✓':'📅 '+due}</span><span>· ${aName}</span>
-          ${DB.getSession()?.isAdmin ? `<span class="kanban-card-actions">
-            <button onclick="editDemand(${d.id})" title="Editar">✏</button>
-            <button onclick="deleteDemandConfirm(${d.id})" title="Excluir">🗑</button>
-          </span>` : ''}
+          <span class="${isOverdue?'color-red':''}">${col.id==='done'?'✓':'📅 '+due}</span>
+          <span>· ${aName}${isMine?' <span class="mine-dot" title="Sua tarefa">●</span>':''}</span>
+          ${actionsHtml}
         </div>
       </div>`;
     }).join('');
+
     return `<div class="kanban-col">
       <div class="kanban-col-header">
         <span class="kanban-col-title"><span class="kanban-dot" style="background:${col.color};"></span>${col.label} <span class="kanban-count">${cards.length}</span></span>
       </div>
-      ${cardsHtml}
+      ${cardsHtml || `<div class="kanban-empty">Nenhuma tarefa</div>`}
     </div>`;
   }).join('');
 }
 
+/* Mover status — disponível para o próprio usuário */
+function moveDemand(id) {
+  const d = DB.getDemands().find(d => d.id === id);
+  if (!d) return;
+  // Usuário comum só pode mover as suas
+  if (!isAdmin() && d.assigneeId !== currentUser()?.id) { toast('Você não tem permissão.', 'error'); return; }
+
+  const nextStatus = { todo: 'inprogress', inprogress: 'review', review: 'done' };
+  const statusLabel = { todo:'A fazer', inprogress:'Em progresso', review:'Em revisão', done:'Concluída' };
+  const next = nextStatus[d.status];
+  if (!next) return;
+
+  openModal({
+    title: 'Atualizar Status da Tarefa',
+    body: `<p style="color:var(--text-secondary);font-size:14px;">Mover "<strong>${d.title}</strong>" de <strong>${statusLabel[d.status]}</strong> para <strong>${statusLabel[next]}</strong>?</p>`,
+    onConfirm: () => {
+      DB.updateDemand(id, { status: next });
+      DB.logActivity(`<strong>${currentUser()?.name}</strong> moveu "${d.title}" para ${statusLabel[next]}`, 'var(--accent)');
+      closeModal(); toast('Status atualizado!'); renderKanban(); renderDashboard();
+    }, confirmText: 'Confirmar'
+  });
+}
+
 function openNewDemand() {
+  if (!isAdmin()) { toast('Apenas administradores podem criar demandas.', 'error'); return; }
   const members = DB.getMembers();
   openModal({
     title: 'Nova Demanda', wide: true,
@@ -194,6 +303,7 @@ function openNewDemand() {
 }
 
 function editDemand(id) {
+  if (!isAdmin()) { toast('Apenas administradores podem editar demandas.', 'error'); return; }
   const d = DB.getDemands().find(d => d.id === id);
   if (!d) return;
   const members = DB.getMembers();
@@ -235,6 +345,7 @@ function editDemand(id) {
 }
 
 function deleteDemandConfirm(id) {
+  if (!isAdmin()) { toast('Apenas administradores podem excluir demandas.', 'error'); return; }
   const d = DB.getDemands().find(d => d.id === id);
   confirmDialog(`Excluir "<strong>${d?.title}</strong>"?`, () => {
     DB.deleteDemand(id); closeModal(); toast('Demanda excluída.', 'info'); renderKanban(); renderDashboard();
@@ -244,7 +355,7 @@ function deleteDemandConfirm(id) {
 /* ══════════════════════════════════════════════════════════
    CALENDÁRIO
    ══════════════════════════════════════════════════════════ */
-let calDate = new Date(2026, 3, 1);
+let calDate = new Date();
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function changeMonth(dir) { calDate.setMonth(calDate.getMonth() + dir); renderCalendar(); }
@@ -253,14 +364,18 @@ function renderCalendar() {
   const y = calDate.getFullYear(), m = calDate.getMonth();
   document.getElementById('cal-month').textContent = MONTHS[m] + ' ' + y;
 
+  // Admin vê botão de novo evento
+  const btnNewEvent = document.getElementById('btn-new-event');
+  if (btnNewEvent) btnNewEvent.style.display = isAdmin() ? 'flex' : 'none';
+
   const events = DB.getEvents();
   const eventMap = {};
   events.forEach(e => { if (!eventMap[e.date]) eventMap[e.date] = []; eventMap[e.date].push(e); });
 
-  const firstDay = new Date(y, m, 1).getDay();
+  const firstDay    = new Date(y, m, 1).getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const daysInPrev  = new Date(y, m, 0).getDate();
-  const today = new Date();
+  const today       = new Date();
 
   let html = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d => `<div class="cal-header-cell">${d}</div>`).join('');
 
@@ -270,11 +385,11 @@ function renderCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = (d === today.getDate() && m === today.getMonth() && y === today.getFullYear());
-    const evs = eventMap[dateStr] || [];
-    const evHtml = evs.map(e =>
-      `<div class="cal-event" style="background:${e.bg};color:${e.color};" title="${e.title}" data-id="${e.id}">${e.title}</div>`
+    const evs     = eventMap[dateStr] || [];
+    const evHtml  = evs.map(e =>
+      `<div class="cal-event" style="background:${e.bg};color:${e.color};" title="${e.title}" data-id="${e.id}">${e.title}${isAdmin()?` <span class="cal-event-del" onclick="event.stopPropagation();deleteEventConfirm(${e.id})">×</span>`:''}</div>`
     ).join('');
-    const addBtn = DB.getSession()?.isAdmin
+    const addBtn = isAdmin()
       ? `<button class="cal-add-btn" onclick="openNewEvent('${dateStr}')" title="Adicionar evento">+</button>` : '';
     html += `<div class="cal-cell${isToday?' today':''}" data-date="${dateStr}">
       <div class="cal-day-row"><div class="cal-day">${d}</div>${addBtn}</div>
@@ -288,17 +403,20 @@ function renderCalendar() {
 
   document.getElementById('calendar').innerHTML = html;
 
-  // Click nos eventos para editar (admin)
-  if (DB.getSession()?.isAdmin) {
+  if (isAdmin()) {
     document.querySelectorAll('.cal-event[data-id]').forEach(el => {
-      el.addEventListener('click', e => { e.stopPropagation(); editEvent(parseInt(el.dataset.id)); });
+      el.addEventListener('click', e => {
+        if (e.target.classList.contains('cal-event-del')) return;
+        e.stopPropagation(); editEvent(parseInt(el.dataset.id));
+      });
     });
   }
 }
 
 function openNewEvent(dateStr = '') {
+  if (!isAdmin()) { toast('Apenas administradores podem criar eventos.', 'error'); return; }
   openModal({
-    title: 'Novo Evento', wide: false,
+    title: 'Novo Evento',
     body: `
       <div class="field"><label>Título *</label><input id="f-etitle" type="text" placeholder="Nome do evento"></div>
       <div class="field"><label>Data *</label><input id="f-edate" type="date" value="${dateStr}"></div>
@@ -330,22 +448,46 @@ function openNewEvent(dateStr = '') {
 }
 
 function editEvent(id) {
+  if (!isAdmin()) return;
   const e = DB.getEvents().find(e => e.id === id);
   if (!e) return;
+  const colorReverseMap = {
+    'var(--accent)':'accent','var(--purple)':'purple','var(--pink)':'pink',
+    'var(--green)':'green','var(--red)':'red'
+  };
   openModal({
     title: 'Editar Evento',
     body: `
       <div class="field"><label>Título *</label><input id="f-etitle" type="text" value="${e.title}"></div>
-      <div class="field"><label>Data *</label><input id="f-edate" type="date" value="${e.date}"></div>`,
+      <div class="field"><label>Data *</label><input id="f-edate" type="date" value="${e.date}"></div>
+      <div class="field"><label>Cor</label>
+        <select id="f-ecolor">
+          ${['accent','purple','pink','green','red'].map(k =>
+            `<option value="${k}" ${colorReverseMap[e.color]===k?'selected':''}>${{accent:'🟠 Laranja',purple:'🟣 Roxo',pink:'🩷 Rosa',green:'🟢 Verde',red:'🔴 Vermelho'}[k]}</option>`
+          ).join('')}
+        </select>
+      </div>`,
     onConfirm: () => {
       const title = document.getElementById('f-etitle').value.trim();
       const date  = document.getElementById('f-edate').value;
       if (!title || !date) { toast('Preencha título e data.', 'error'); return; }
-      DB.updateEvent(id, { title, date });
+      const colorKey = document.getElementById('f-ecolor').value;
+      const colorMap = {
+        accent:{ color:'var(--accent)', bg:'var(--accent-glow)' }, purple:{ color:'var(--purple)', bg:'var(--purple-bg)' },
+        pink:  { color:'var(--pink)',   bg:'var(--pink-bg)' },     green: { color:'var(--green)',  bg:'var(--green-bg)' },
+        red:   { color:'var(--red)',    bg:'var(--red-bg)' },
+      };
+      DB.updateEvent(id, { title, date, ...colorMap[colorKey] });
       closeModal(); toast('Evento atualizado!'); renderCalendar();
-    },
-    confirmText: 'Salvar',
-    danger: false
+    }, confirmText: 'Salvar'
+  });
+}
+
+function deleteEventConfirm(id) {
+  if (!isAdmin()) return;
+  const e = DB.getEvents().find(e => e.id === id);
+  confirmDialog(`Remover evento "<strong>${e?.title}</strong>"?`, () => {
+    DB.deleteEvent(id); closeModal(); toast('Evento removido.', 'info'); renderCalendar();
   });
 }
 
@@ -354,24 +496,57 @@ function editEvent(id) {
    ══════════════════════════════════════════════════════════ */
 function renderMembers() {
   const members = DB.getMembers();
-  const isAdmin = DB.getSession()?.isAdmin;
+  const u       = currentUser();
   document.querySelector('#page-membros .page-toolbar-info').textContent =
     `${members.filter(m => m.active).length} membros ativos`;
 
-  document.getElementById('members-grid').innerHTML = members.map(m => `
-    <div class="member-card">
+  const btnNew = document.getElementById('btn-new-member');
+  if (btnNew) btnNew.style.display = isAdmin() ? 'flex' : 'none';
+
+  document.getElementById('members-grid').innerHTML = members.map(m => {
+    const isMe = m.id === u?.id;
+    return `
+    <div class="member-card ${isMe?'member-card-me':''}">
       <div class="member-avatar" style="background:${m.color || avatarColor(m.id)}">${getInitials(m.name)}</div>
-      <div class="member-name">${m.name}</div>
+      ${m.isAdmin ? '<div class="member-admin-tag">Admin</div>' : ''}
+      <div class="member-name">${m.name}${isMe?' <span style="font-size:11px;color:var(--accent)">(você)</span>':''}</div>
       <div class="member-role">${m.role || 'Membro'}</div>
       <span class="member-sector">${m.sector || '—'}</span>
-      ${isAdmin ? `<div class="member-actions">
+      ${isAdmin() ? `<div class="member-actions">
         <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px;" onclick="editMember(${m.id})">Editar</button>
-        <button class="btn btn-danger" style="font-size:12px;padding:4px 10px;" onclick="deleteMemberConfirm(${m.id})">Remover</button>
-      </div>` : ''}
-    </div>`).join('');
+        ${!isMe ? `<button class="btn btn-danger" style="font-size:12px;padding:4px 10px;" onclick="deleteMemberConfirm(${m.id})">Remover</button>` : ''}
+      </div>` : `<div class="member-actions">
+        ${isMe ? `<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px;" onclick="editMyProfile()">Meu Perfil</button>` : ''}
+      </div>`}
+    </div>`;
+  }).join('');
+}
+
+/* Usuário comum pode editar o próprio perfil (nome, senha) */
+function editMyProfile() {
+  const u = currentUser();
+  if (!u) return;
+  openModal({
+    title: 'Meu Perfil', wide: false,
+    body: `
+      <div class="field"><label>Nome</label><input id="f-mname" type="text" value="${u.name}"></div>
+      <div class="field"><label>Nova senha</label><input id="f-mpass" type="password" placeholder="Deixe em branco para manter"></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:.5rem;">Setor e cargo são definidos pelo administrador.</p>`,
+    onConfirm: () => {
+      const name = document.getElementById('f-mname').value.trim();
+      const pass = document.getElementById('f-mpass').value.trim();
+      if (!name) { toast('Informe seu nome.', 'error'); return; }
+      const update = { name };
+      if (pass.length >= 6) update.password = pass;
+      else if (pass.length > 0) { toast('Senha deve ter mínimo 6 caracteres.', 'error'); return; }
+      DB.updateMember(u.id, update);
+      closeModal(); toast('Perfil atualizado!'); renderSidebarUser(); renderMembers();
+    }, confirmText: 'Salvar'
+  });
 }
 
 function openNewMember() {
+  if (!isAdmin()) { toast('Apenas administradores podem adicionar membros.', 'error'); return; }
   openModal({
     title: 'Adicionar Membro', wide: true,
     body: `
@@ -395,6 +570,7 @@ function openNewMember() {
       const email = document.getElementById('f-memail').value.trim();
       const pass  = document.getElementById('f-mpass').value.trim();
       if (!name || !email || !pass) { toast('Preencha nome, e-mail e senha.', 'error'); return; }
+      if (pass.length < 6) { toast('Senha deve ter mínimo 6 caracteres.', 'error'); return; }
       DB.addMember({
         name, email, password: pass,
         role:    document.getElementById('f-mrole').value.trim() || 'Membro',
@@ -408,6 +584,7 @@ function openNewMember() {
 }
 
 function editMember(id) {
+  if (!isAdmin()) { toast('Apenas administradores podem editar membros.', 'error'); return; }
   const m = DB.getMemberById(id);
   if (!m) return;
   openModal({
@@ -416,6 +593,7 @@ function editMember(id) {
       <div class="form-grid">
         <div class="field"><label>Nome *</label><input id="f-mname" type="text" value="${m.name}"></div>
         <div class="field"><label>E-mail</label><input id="f-memail" type="email" value="${m.email||''}"></div>
+        <div class="field"><label>Nova senha</label><input id="f-mpass" type="password" placeholder="Deixe em branco para manter"></div>
         <div class="field"><label>Cargo</label><input id="f-mrole" type="text" value="${m.role||''}"></div>
         <div class="field"><label>Setor</label>
           <select id="f-msector">
@@ -430,38 +608,47 @@ function editMember(id) {
         </div>
       </div>`,
     onConfirm: () => {
-      DB.updateMember(id, {
-        name:    document.getElementById('f-mname').value.trim(),
-        email:   document.getElementById('f-memail').value.trim(),
-        role:    document.getElementById('f-mrole').value.trim(),
-        sector:  document.getElementById('f-msector').value,
+      const name = document.getElementById('f-mname').value.trim();
+      const pass = document.getElementById('f-mpass').value.trim();
+      if (!name) { toast('Informe o nome.', 'error'); return; }
+      if (pass && pass.length < 6) { toast('Senha deve ter mínimo 6 caracteres.', 'error'); return; }
+      const update = {
+        name, email: document.getElementById('f-memail').value.trim(),
+        role: document.getElementById('f-mrole').value.trim(),
+        sector: document.getElementById('f-msector').value,
         isAdmin: document.getElementById('f-madmin').value === 'true',
-      });
+      };
+      if (pass) update.password = pass;
+      DB.updateMember(id, update);
       closeModal(); toast('Membro atualizado!'); renderMembers();
     }, confirmText: 'Salvar'
   });
 }
 
 function deleteMemberConfirm(id) {
+  if (!isAdmin()) { toast('Apenas administradores podem remover membros.', 'error'); return; }
   const m = DB.getMemberById(id);
-  if (m?.id === DB.getSession()?.id) { toast('Você não pode remover a si mesmo.', 'error'); return; }
+  if (m?.id === currentUser()?.id) { toast('Você não pode remover a si mesmo.', 'error'); return; }
   confirmDialog(`Remover "<strong>${m?.name}</strong>" da equipe?`, () => {
     DB.deleteMember(id); closeModal(); toast('Membro removido.', 'info'); renderMembers(); renderDashboard();
   });
 }
 
 /* ══════════════════════════════════════════════════════════
-   RELATÓRIOS
+   RELATÓRIOS — Admin: CRUD + avaliação | User: entrega
    ══════════════════════════════════════════════════════════ */
 let reportTab = 'atual';
 
 function renderReports() {
-  const reports    = DB.getReports();
-  const isAdmin    = DB.getSession()?.isAdmin;
-  const currentUser = DB.getSession();
+  const reports     = DB.getReports();
+  const u           = currentUser();
+
+  // Admin vê botão de criar ciclo
+  const btnNew = document.getElementById('btn-new-report');
+  if (btnNew) btnNew.style.display = isAdmin() ? 'flex' : 'none';
 
   let filtered = reports;
-  if (reportTab === 'meus') filtered = reports.filter(r => r.memberId === currentUser?.id);
+  if (reportTab === 'meus') filtered = reports.filter(r => r.memberId === u?.id);
 
   const STATUS_MAP = {
     pendente:  { cls:'status-pendente', label:'Pendente' },
@@ -471,17 +658,27 @@ function renderReports() {
   };
 
   document.getElementById('reports-table-body').innerHTML = filtered.map(r => {
-    const s = STATUS_MAP[r.status] || STATUS_MAP.pendente;
-    const canDeliver = !isAdmin && r.memberId === currentUser?.id && r.status === 'pendente';
-    const canEval    = isAdmin && r.status === 'entregue';
+    const s        = STATUS_MAP[r.status] || STATUS_MAP.pendente;
+    const isMine   = r.memberId === u?.id;
+    const canWrite = isMine && (r.status === 'pendente' || r.status === 'atrasado');
+    const canEval  = isAdmin() && r.status === 'entregue';
+    const canView  = r.status === 'entregue' || r.status === 'avaliado';
+
     return `<tr>
-      <td class="td-name">${r.memberName}</td>
+      <td class="td-name">${r.memberName}${isMine?' <span style="font-size:10px;color:var(--accent)">(você)</span>':''}</td>
       <td>${r.sector||'—'}</td>
       <td><span class="status-badge ${s.cls}">${s.label}</span></td>
-      <td>${r.deliveredAt ? fmtDate(r.deliveredAt) + ', ' + new Date(r.deliveredAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '<span class="color-muted">—</span>'}</td>
-      <td>${r.grade ? `<span class="color-green">✓ ${r.grade}</span>` : '<span class="color-muted">Aguardando</span>'}
-        ${canDeliver ? `<button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;margin-left:8px;" onclick="deliverReport(${r.id})">Entregar</button>` : ''}
-        ${canEval    ? `<button class="btn btn-primary-action" style="font-size:11px;padding:3px 8px;margin-left:8px;" onclick="evalReport(${r.id})">Avaliar</button>` : ''}
+      <td>${r.deliveredAt
+        ? fmtDate(r.deliveredAt) + ', ' + new Date(r.deliveredAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+        : '<span class="color-muted">—</span>'}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          ${r.grade ? `<span class="color-green">✓ ${r.grade}</span>` : '<span class="color-muted">Aguardando</span>'}
+          ${canWrite ? `<button class="btn btn-primary-action report-btn" onclick="openDeliverReport(${r.id})">📝 Entregar</button>` : ''}
+          ${canEval  ? `<button class="btn btn-primary-action report-btn" onclick="evalReport(${r.id})">⭐ Avaliar</button>` : ''}
+          ${canView && isAdmin() ? `<button class="btn btn-ghost report-btn" onclick="viewReport(${r.id})">👁 Ver</button>` : ''}
+          ${isAdmin() ? `<button class="btn btn-ghost report-btn" style="color:var(--red);" onclick="deleteReportConfirm(${r.id})">🗑</button>` : ''}
+        </div>
       </td>
     </tr>`;
   }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">Sem relatórios.</td></tr>';
@@ -495,7 +692,54 @@ function switchReportTab(tab) {
   renderReports();
 }
 
+/* Entregar relatório com conteúdo (user preenche) */
+function openDeliverReport(id) {
+  const r = DB.getReports().find(r => r.id === id);
+  if (!r) return;
+  if (r.memberId !== currentUser()?.id && !isAdmin()) { toast('Você só pode entregar seus próprios relatórios.', 'error'); return; }
+
+  openModal({
+    title: `Entregar Relatório — ${r.week}`, wide: true,
+    body: `
+      <div class="field">
+        <label>Resumo das atividades *</label>
+        <textarea id="f-rcontent" rows="6" placeholder="Descreva o que foi feito nesta semana, dificuldades encontradas e próximos passos..."
+          style="width:100%;resize:vertical;font-size:13px;">${r.content||''}</textarea>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);">Prazo: <strong>${r.deadline ? new Date(r.deadline).toLocaleString('pt-BR') : '—'}</strong></p>`,
+    onConfirm: () => {
+      const content = document.getElementById('f-rcontent').value.trim();
+      if (!content) { toast('Preencha o resumo das atividades.', 'error'); return; }
+      const isLate = r.deadline && new Date() > new Date(r.deadline);
+      DB.updateReport(id, {
+        status: isLate ? 'atrasado' : 'entregue',
+        deliveredAt: new Date().toISOString(),
+        content
+      });
+      DB.logActivity(`<strong>${currentUser()?.name}</strong> entregou relatório da ${r.week}`, 'var(--pink)');
+      closeModal(); toast(isLate ? 'Relatório entregue (com atraso).' : 'Relatório entregue!'); renderReports(); renderDashboard();
+    }, confirmText: 'Entregar relatório'
+  });
+}
+
+function viewReport(id) {
+  const r = DB.getReports().find(r => r.id === id);
+  if (!r) return;
+  openModal({
+    title: `Relatório — ${r.memberName}`,
+    body: `
+      <div style="margin-bottom:.75rem;">
+        <span class="status-badge status-${r.status}">${r.status}</span>
+        <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">${r.week} · ${r.weekLabel||''}</span>
+      </div>
+      <div style="background:var(--bg-secondary);border-radius:8px;padding:1rem;font-size:13px;color:var(--text-secondary);white-space:pre-wrap;min-height:80px;">${r.content || '<em>Sem conteúdo registrado.</em>'}</div>
+      ${r.grade ? `<div style="margin-top:.75rem;font-size:13px;"><strong>Avaliação:</strong> <span class="color-green">${r.grade}</span></div>` : ''}`,
+    confirmText: null
+  });
+}
+
 function openNewReport() {
+  if (!isAdmin()) { toast('Apenas administradores podem criar ciclos.', 'error'); return; }
   const members = DB.getMembers();
   openModal({
     title: 'Criar Ciclo de Relatórios', wide: true,
@@ -503,41 +747,226 @@ function openNewReport() {
       <div class="field"><label>Semana / Ciclo *</label><input id="f-rweek" type="text" placeholder="ex: Semana 17"></div>
       <div class="field"><label>Período</label><input id="f-rperiod" type="text" placeholder="ex: 21/04 – 25/04"></div>
       <div class="field"><label>Prazo de entrega *</label><input id="f-rdeadline" type="datetime-local"></div>
-      <p style="font-size:13px;color:var(--text-muted);margin-top:.5rem;">Um relatório pendente será criado para cada membro ativo.</p>`,
+      <p style="font-size:13px;color:var(--text-muted);margin-top:.5rem;">Um relatório pendente será criado para cada membro ativo (${members.filter(m=>m.active).length} membros).</p>`,
     onConfirm: () => {
       const week    = document.getElementById('f-rweek').value.trim();
       const period  = document.getElementById('f-rperiod').value.trim();
       const deadline= document.getElementById('f-rdeadline').value;
       if (!week || !deadline) { toast('Preencha semana e prazo.', 'error'); return; }
-      members.forEach(m => {
+      members.filter(m => m.active).forEach(m => {
         DB.addReport({ memberId: m.id, memberName: m.name, sector: m.sector, week, weekLabel: period, deadline });
       });
       DB.logActivity(`<strong>Sistema</strong> abriu ciclo de relatórios: ${week}`, 'var(--yellow)');
-      closeModal(); toast(`Ciclo "${week}" criado para ${members.length} membros!`); renderReports();
+      closeModal(); toast(`Ciclo "${week}" criado para ${members.filter(m=>m.active).length} membros!`); renderReports();
     }, confirmText: 'Criar ciclo'
   });
 }
 
-function deliverReport(id) {
-  DB.updateReport(id, { status: 'entregue', deliveredAt: new Date().toISOString() });
-  DB.logActivity(`<strong>${DB.getSession()?.name}</strong> entregou relatório`, 'var(--pink)');
-  toast('Relatório entregue!'); renderReports(); renderDashboard();
-}
-
 function evalReport(id) {
+  if (!isAdmin()) { toast('Apenas administradores podem avaliar relatórios.', 'error'); return; }
+  const r = DB.getReports().find(r => r.id === id);
   openModal({
-    title: 'Avaliar Relatório',
-    body: `<div class="field"><label>Avaliação</label>
-      <select id="f-grade">
-        <option value="aprovado">✓ Aprovado</option>
-        <option value="aprovado com ressalvas">⚠ Aprovado com ressalvas</option>
-        <option value="reprovado">✕ Reprovado</option>
-      </select></div>`,
+    title: `Avaliar: ${r?.memberName}`, wide: true,
+    body: `
+      ${r?.content ? `<div style="background:var(--bg-secondary);border-radius:8px;padding:.75rem;font-size:13px;color:var(--text-secondary);white-space:pre-wrap;margin-bottom:1rem;max-height:150px;overflow-y:auto;">${r.content}</div>` : ''}
+      <div class="field"><label>Avaliação</label>
+        <select id="f-grade">
+          <option value="aprovado">✓ Aprovado</option>
+          <option value="aprovado com ressalvas">⚠ Aprovado com ressalvas</option>
+          <option value="reprovado">✕ Reprovado</option>
+        </select>
+      </div>`,
     onConfirm: () => {
       const grade = document.getElementById('f-grade').value;
       DB.updateReport(id, { status: 'avaliado', grade });
+      DB.logActivity(`<strong>Admin</strong> avaliou relatório de ${r?.memberName}: ${grade}`, 'var(--yellow)');
       closeModal(); toast('Avaliação registrada!'); renderReports();
     }, confirmText: 'Confirmar avaliação'
+  });
+}
+
+function deleteReportConfirm(id) {
+  if (!isAdmin()) return;
+  confirmDialog('Excluir este relatório?', () => {
+    DB.deleteReport(id); closeModal(); toast('Relatório excluído.', 'info'); renderReports();
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   METAS DA EQUIPE — Admin only
+   ══════════════════════════════════════════════════════════ */
+function renderGoals() {
+  if (!isAdmin()) {
+    toast('Acesso restrito.', 'error'); switchPage('dashboard'); return;
+  }
+
+  const goals    = DB.getGoals();
+  const active   = goals.filter(g => g.status === 'ativa');
+  const done     = goals.filter(g => g.status === 'concluida');
+  const PCAT     = { 'Técnica':'var(--accent)', 'Testes':'var(--green)', 'Gestão':'var(--purple)', 'Outro':'var(--text-muted)' };
+  const PRIO_C   = { urgente:'var(--red)', alta:'var(--accent)', media:'var(--yellow)', normal:'var(--green)' };
+
+  const renderCard = g => `
+    <div class="goal-card ${g.status==='concluida'?'goal-done':''}">
+      <div class="goal-card-header">
+        <div>
+          <div class="goal-card-title">${g.title}</div>
+          <div class="goal-card-meta">
+            <span class="goal-tag" style="background:${PCAT[g.category]||'var(--text-muted)'}22;color:${PCAT[g.category]||'var(--text-muted)'};">${g.category||'Outro'}</span>
+            <span class="goal-tag" style="background:${PRIO_C[g.priority]||'var(--text-muted)'}22;color:${PRIO_C[g.priority]||'var(--text-muted)'};">${g.priority||'normal'}</span>
+            ${g.dueDate?`<span style="font-size:11px;color:var(--text-muted);">📅 ${new Date(g.dueDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>`:''}
+          </div>
+        </div>
+        <div class="goal-card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editGoal(${g.id})">✏</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteGoalConfirm(${g.id})">🗑</button>
+        </div>
+      </div>
+      ${g.description?`<p class="goal-description">${g.description}</p>`:''}
+      <div class="goal-progress-section">
+        <div class="goal-progress-label">
+          <span>Progresso</span>
+          <span class="goal-pct-label">${g.progress}%</span>
+        </div>
+        <div class="goal-progress-bar">
+          <div class="goal-progress-fill" style="width:${g.progress}%;background:${g.progress>=80?'var(--green)':g.progress>=40?'var(--yellow)':'var(--accent)'}"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+          ${[0,25,50,75,100].map(p=>`<button class="btn btn-ghost btn-sm ${g.progress===p?'btn-active':''}" onclick="setGoalProgress(${g.id},${p})">${p}%</button>`).join('')}
+          <button class="btn btn-ghost btn-sm" onclick="setGoalProgressCustom(${g.id})">Outro</button>
+          ${g.status!=='concluida'?`<button class="btn btn-primary-action btn-sm" onclick="concludeGoal(${g.id})" style="margin-left:auto;">✓ Concluir</button>`:''}
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('goals-active').innerHTML = active.map(renderCard).join('')
+    || '<p style="color:var(--text-muted);font-size:13px;padding:1rem 0">Nenhuma meta ativa.</p>';
+
+  const doneContainer = document.getElementById('goals-done');
+  if (doneContainer) {
+    doneContainer.innerHTML = done.map(renderCard).join('')
+      || '<p style="color:var(--text-muted);font-size:13px;padding:1rem 0">Nenhuma meta concluída ainda.</p>';
+  }
+
+  // Stats
+  const totalPct = active.length ? Math.round(active.reduce((s,g)=>s+g.progress,0)/active.length) : 0;
+  const elStat = document.getElementById('goals-stat-pct');
+  if (elStat) elStat.textContent = totalPct + '%';
+  const elCount = document.getElementById('goals-stat-count');
+  if (elCount) elCount.textContent = active.length;
+}
+
+function openNewGoal() {
+  if (!isAdmin()) return;
+  openModal({
+    title: 'Nova Meta da Equipe', wide: true,
+    body: `
+      <div class="form-grid">
+        <div class="field field-full"><label>Título *</label><input id="f-gtitle" type="text" placeholder="Ex: Concluir injetor v2"></div>
+        <div class="field field-full"><label>Descrição</label><textarea id="f-gdesc" rows="2" placeholder="Detalhes da meta..." style="width:100%;resize:vertical;font-size:13px;"></textarea></div>
+        <div class="field"><label>Categoria</label>
+          <select id="f-gcat">
+            <option>Técnica</option><option>Testes</option><option>Gestão</option><option>Outro</option>
+          </select>
+        </div>
+        <div class="field"><label>Prioridade</label>
+          <select id="f-gprio">
+            <option value="urgente">🔴 Urgente</option>
+            <option value="alta">🟠 Alta</option>
+            <option value="media" selected>🟡 Média</option>
+            <option value="normal">🟢 Normal</option>
+          </select>
+        </div>
+        <div class="field"><label>Prazo</label><input id="f-gdue" type="date"></div>
+        <div class="field"><label>Progresso inicial (%)</label><input id="f-gpct" type="number" min="0" max="100" value="0"></div>
+      </div>`,
+    onConfirm: () => {
+      const title = document.getElementById('f-gtitle').value.trim();
+      if (!title) { toast('Informe o título da meta.', 'error'); return; }
+      DB.addGoal({
+        title,
+        description: document.getElementById('f-gdesc').value.trim(),
+        category:    document.getElementById('f-gcat').value,
+        priority:    document.getElementById('f-gprio').value,
+        dueDate:     document.getElementById('f-gdue').value,
+        progress:    parseInt(document.getElementById('f-gpct').value) || 0,
+      });
+      closeModal(); toast('Meta criada!'); renderGoals();
+    }, confirmText: 'Criar meta'
+  });
+}
+
+function editGoal(id) {
+  if (!isAdmin()) return;
+  const g = DB.getGoals().find(g => g.id === id);
+  if (!g) return;
+  openModal({
+    title: 'Editar Meta', wide: true,
+    body: `
+      <div class="form-grid">
+        <div class="field field-full"><label>Título *</label><input id="f-gtitle" type="text" value="${g.title}"></div>
+        <div class="field field-full"><label>Descrição</label><textarea id="f-gdesc" rows="2" style="width:100%;resize:vertical;font-size:13px;">${g.description||''}</textarea></div>
+        <div class="field"><label>Categoria</label>
+          <select id="f-gcat">${['Técnica','Testes','Gestão','Outro'].map(c=>`<option ${g.category===c?'selected':''}>${c}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Prioridade</label>
+          <select id="f-gprio">${['urgente','alta','media','normal'].map(p=>`<option value="${p}" ${g.priority===p?'selected':''}>${p}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Prazo</label><input id="f-gdue" type="date" value="${g.dueDate||''}"></div>
+        <div class="field"><label>Progresso (%)</label><input id="f-gpct" type="number" min="0" max="100" value="${g.progress}"></div>
+      </div>`,
+    onConfirm: () => {
+      const title = document.getElementById('f-gtitle').value.trim();
+      if (!title) { toast('Informe o título.', 'error'); return; }
+      DB.updateGoal(id, {
+        title, description: document.getElementById('f-gdesc').value.trim(),
+        category: document.getElementById('f-gcat').value,
+        priority: document.getElementById('f-gprio').value,
+        dueDate:  document.getElementById('f-gdue').value,
+        progress: parseInt(document.getElementById('f-gpct').value) || 0,
+      });
+      closeModal(); toast('Meta atualizada!'); renderGoals();
+    }, confirmText: 'Salvar'
+  });
+}
+
+function setGoalProgress(id, pct) {
+  if (!isAdmin()) return;
+  DB.updateGoal(id, { progress: pct });
+  if (pct === 100) DB.updateGoal(id, { status: 'concluida' });
+  renderGoals(); renderDashboard();
+}
+
+function setGoalProgressCustom(id) {
+  if (!isAdmin()) return;
+  const g = DB.getGoals().find(g => g.id === id);
+  openModal({
+    title: 'Atualizar Progresso',
+    body: `<div class="field"><label>Progresso (%)</label><input id="f-gpct" type="number" min="0" max="100" value="${g?.progress||0}"></div>`,
+    onConfirm: () => {
+      const pct = Math.min(100, Math.max(0, parseInt(document.getElementById('f-gpct').value) || 0));
+      DB.updateGoal(id, { progress: pct });
+      if (pct === 100) DB.updateGoal(id, { status: 'concluida' });
+      closeModal(); toast('Progresso atualizado!'); renderGoals(); renderDashboard();
+    }, confirmText: 'Salvar'
+  });
+}
+
+function concludeGoal(id) {
+  if (!isAdmin()) return;
+  const g = DB.getGoals().find(g => g.id === id);
+  confirmDialog(`Marcar "<strong>${g?.title}</strong>" como concluída?`, () => {
+    DB.updateGoal(id, { status: 'concluida', progress: 100 });
+    DB.logActivity(`Meta concluída: <strong>${g?.title}</strong>`, 'var(--green)');
+    closeModal(); toast('Meta concluída! 🎉'); renderGoals(); renderDashboard();
+  });
+}
+
+function deleteGoalConfirm(id) {
+  if (!isAdmin()) return;
+  const g = DB.getGoals().find(g => g.id === id);
+  confirmDialog(`Excluir meta "<strong>${g?.title}</strong>"?`, () => {
+    DB.deleteGoal(id); closeModal(); toast('Meta excluída.', 'info'); renderGoals();
   });
 }
 
@@ -545,10 +974,10 @@ function evalReport(id) {
    PAINEL DE ADMINISTRAÇÃO
    ══════════════════════════════════════════════════════════ */
 function renderAdmin() {
-  if (!DB.getSession()?.isAdmin) {
-    document.getElementById('page-admin').innerHTML = '<p style="color:var(--text-muted);padding:2rem;">Acesso restrito a administradores.</p>';
-    return;
+  if (!isAdmin()) {
+    toast('Acesso restrito.', 'error'); switchPage('dashboard'); return;
   }
+
   const requests = DB.getRequests().filter(r => r.status === 'pendente');
   document.getElementById('admin-requests-count').textContent = requests.length;
 
@@ -566,9 +995,21 @@ function renderAdmin() {
         </div>
       </div>`).join('')
     : '<p style="color:var(--text-muted);font-size:13px;">Nenhuma solicitação pendente.</p>';
+
+  // Stats resumo
+  const members  = DB.getMembers();
+  const demands  = DB.getDemands();
+  const reports  = DB.getReports();
+  const goals    = DB.getGoals();
+
+  document.getElementById('admin-stat-members').textContent = members.filter(m=>m.active).length;
+  document.getElementById('admin-stat-demands').textContent = demands.filter(d=>d.status!=='done').length;
+  document.getElementById('admin-stat-reports').textContent = reports.filter(r=>r.status==='pendente'||r.status==='atrasado').length;
+  document.getElementById('admin-stat-goals').textContent   = goals.filter(g=>g.status==='ativa').length;
 }
 
 function approveRequest(id) {
+  if (!isAdmin()) return;
   const r = DB.getRequests().find(r => r.id === id);
   openModal({
     title: `Aprovar: ${r?.name}`, wide: true,
@@ -593,6 +1034,7 @@ function approveRequest(id) {
 }
 
 function rejectRequest(id) {
+  if (!isAdmin()) return;
   const r = DB.getRequests().find(r => r.id === id);
   confirmDialog(`Rejeitar solicitação de <strong>${r?.name}</strong>?`, () => {
     DB.rejectRequest(id); closeModal(); toast('Solicitação rejeitada.', 'info'); renderAdmin();
@@ -613,5 +1055,12 @@ function logout() {
 document.addEventListener('DOMContentLoaded', () => {
   renderSidebarUser();
   renderDashboard();
-  renderCalendar(); // pré-renderiza mas só aparece quando clicado
+  renderCalendar();
+
+  // Controlar visibilidade de botões de ação conforme perfil
+  const adminOnlyBtns = ['btn-new-event', 'btn-new-member', 'btn-new-report', 'btn-new-demand'];
+  adminOnlyBtns.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isAdmin() ? 'flex' : 'none';
+  });
 });
