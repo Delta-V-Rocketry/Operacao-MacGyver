@@ -597,8 +597,10 @@ function openNewMember() {
         <div class="field"><label>Cargo / Função</label><input id="f-mrole" type="text" placeholder="Membro, Líder..."></div>
         <div class="field"><label>Setor</label>
           <select id="f-msector">
-            <option>Propulsão</option><option>Estrutura</option><option>Eletrônica</option>
-            <option>Aerodinâmica</option><option>Software</option><option>Gestão</option>
+            <option>Propulsão</option><option>Aviônica</option><option>P&D</option>
+            <option>Aerodinâmica</option><option>Recuperação</option><option>SegOps</option>
+            <option>Marketing</option><option>Gestão</option><option>Financeiro</option>
+            <option>Relações</option>
           </select>
         </div>
         <div class="field"><label>Perfil de acesso</label>
@@ -644,7 +646,7 @@ function editMember(id) {
         <div class="field"><label>Cargo</label><input id="f-mrole" type="text" value="${m.role||''}"></div>
         <div class="field"><label>Setor</label>
           <select id="f-msector">
-            ${['Propulsão','Estrutura','Eletrônica','Aerodinâmica','Software','Gestão'].map(s=>`<option ${m.sector===s?'selected':''}>${s}</option>`).join('')}
+            ${['Propulsão','Estrutura e Aerodinâmica','Aviônica','P&D', 'SegOp','Marketing','Financeiro','Recuperação','Gestão','Relações'].map(s=>`<option ${m.sector===s?'selected':''}>${s}</option>`).join('')}
           </select>
         </div>
         <div class="field"><label>Perfil de acesso</label>
@@ -1071,7 +1073,7 @@ function approveRequest(id) {
         <div class="field"><label>Cargo</label><input id="f-mrole" type="text" value="Membro"></div>
         <div class="field"><label>Setor</label>
           <select id="f-msector">
-            ${['Propulsão','Estrutura','Eletrônica','Aerodinâmica','Software','Gestão'].map(s=>`<option>${s}</option>`).join('')}
+            ${['Propulsão','Estrutura e Aerodinâmica','Aviônica','P&D', 'SegOp','Marketing','Financeiro','Recuperação','Gestão','Relações'].map(s=>`<option>${s}</option>`).join('')}
           </select>
         </div>
         <div class="field"><label>Perfil de acesso</label>
