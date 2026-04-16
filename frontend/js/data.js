@@ -196,12 +196,12 @@ const DB = {
   ];
 
   const members = [
-    { name:'Vinicius Chaves',   email:'vini@delta.com',   password:'admin123', role:'Líder do setor', sector:'Propulsão', isAdmin:true,  color:COLORS[0] },
-    { name:'Luiz Eduardo',      email:'luiz@delta.com',      password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[1] },
-    { name:'Pedro Ribeiro',  email:'pedro@delta.com',    password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[2] },
-    { name:'Isabela Mendes', email:'isabela@delta.com',  password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[3] },
-    { name:'Thiago Souza',   email:'thiago@delta.com',   password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[4] },
-    { name:'Lucas Ferreira', email:'lucas@delta.com',    password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[5] },
+    { name:'Vinicius Chaves', email:'vini@delta.com',    password:'admin123', role:'Diretor',        sector:'Gestão',    isAdmin:true,  isLeader:false, color:COLORS[0] },
+    { name:'Luiz Eduardo',    email:'luiz@delta.com',    password:'senha123', role:'Líder de Setor', sector:'Propulsão', isAdmin:false, isLeader:true,  color:COLORS[1] },
+    { name:'Pedro Ribeiro',   email:'pedro@delta.com',   password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, isLeader:false, color:COLORS[2] },
+    { name:'Isabela Mendes',  email:'isabela@delta.com', password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, isLeader:false, color:COLORS[3] },
+    { name:'Thiago Souza',    email:'thiago@delta.com',  password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, isLeader:false, color:COLORS[4] },
+    { name:'Lucas Ferreira',  email:'lucas@delta.com',   password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, isLeader:false, color:COLORS[5] },
   ];
   members.forEach(m => {
     const list = DB.getMembers();
