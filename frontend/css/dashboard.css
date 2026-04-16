@@ -1145,3 +1145,27 @@ body::before {
   color:var(--text-primary);
   cursor:pointer;
 }
+
+.leader-badge-sidebar {
+  display: inline-block;
+  background: var(--purple, #8B83D9);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: auto;
+  margin-top: 4px;
+}
+
+/* Tag "Líder" no card de membro */
+.member-leader-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--purple, #8B83D9);
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
