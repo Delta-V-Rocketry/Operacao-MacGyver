@@ -1,42 +1,45 @@
-from flask import Flask, jsonify
-import database
+from flask import Flask, request, jsonify
+import mysql.connector
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Servidor do Delta Rockets Online! Acesse /testar_cadastro para começar."
 
+import mysql.connector
 
-@app.route('/testar_cadastro')
-def teste_cadastro():
-    
-    sucesso = database.criar_usuario(
-        nome="Comandante Shepard", 
-        email="shepard@deltarockets.com", 
-        senha_plana="foguete123", 
-        setor="Liderança"
+def get_db_connection():
+    return mysql.connector.connect(
+        host="gateway01.us-east-1.prod.aws.tidbcloud.com",
+        port=4000,
+        user="4RRtBp4CJLcko4m.root",
+        password="ZVp6t8YCDyCzJ7x1", 
+        database="joaquim",
+        ssl_ca="/etc/ssl/certs/ca-certificates.crt",
+        ssl_verify_cert=True,
+        ssl_verify_identity=True
     )
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    senha = data.get('senha')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
     
-    if sucesso:
-        return "SUCESSO: "
+    query = "SELECT * FROM usuarios WHERE email = %s AND senha_hash = %s"
+    cursor.execute(query, (email, senha))
+    usuario = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if usuario:
+        return jsonify({"message": "Login realizado com sucesso!", "user": usuario['nome']}), 200
     else:
-        return "ERRO: "
-
-
-@app.route('/testar_login_certo')
-def teste_login_certo():
-    
-    resultado = database.verificar_login("shepard@deltarockets.com", "foguete123")
-    
-    return jsonify(resultado) 
-
-
-@app.route('/testar_login_errado')
-def teste_login_errado():
-    
-    resultado = database.verificar_login("shepard@deltarockets.com", "senha_falsa_999")
-    return jsonify(resultado)
+        return jsonify({"message": "E-mail ou senha incorretos."}), 401
 
 if __name__ == '__main__':
     app.run(debug=True)
