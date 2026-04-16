@@ -13,9 +13,10 @@
   <div class="accent-circle" style="width:300px;height:300px;background:rgba(232,96,26,0.06);top:-80px;left:-80px;"></div>
   <div class="accent-circle" style="width:180px;height:180px;background:rgba(232,96,26,0.04);bottom:40px;left:180px;"></div>
 
+  <!-- ═══ PAINEL ESQUERDO ═══ -->
   <div class="left-panel">
     <div class="logo-wrap">
-      <div class="logo-emoji">🚀</div>
+      <img src="img/logo.jpeg" alt="DeltaV Rocketry" class="logo-img"/>
       <div class="team-name">DeltaV Rocketry</div>
       <div class="team-sub">Sistema de Gestão</div>
     </div>
@@ -23,117 +24,57 @@
 
   <div class="divider-v"></div>
 
+  <!-- ═══ PAINEL DIREITO ═══ -->
   <div class="right-panel">
 
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('login')">Entrar</div>
-      <div class="tab" onclick="switchTab('primeiro')">Primeiro acesso</div>
+    <div class="login-header">
+      <div class="panel-title">Bem-vindo de volta</div>
+      <div class="panel-sub">Acesse o painel da sua equipe</div>
     </div>
 
-    <!-- ═══ LOGIN ═══ -->
-    <div class="form-panel active" id="panel-login">
-      <div class="panel-header">
-        <div class="panel-title">Bem-vindo de volta</div>
-        <div class="panel-sub">Acesse o painel da sua equipe</div>
-      </div>
+    <div class="field">
+      <label>E-mail</label>
+      <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email"/>
+    </div>
 
-      <div class="field">
-        <label>E-mail</label>
-        <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email"/>
-      </div>
-
-      <div class="field">
-        <label>Senha</label>
+    <div class="field">
+      <label>Senha</label>
+      <div class="password-wrap">
         <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password"/>
-      </div>
-
-      <div class="field-row">
-        <label class="remember"><input type="checkbox"/> Lembrar de mim</label>
-      </div>
-
-      <button class="btn-primary" id="btn-login">Entrar</button>
-
-      <div class="hint-box">
-        <div class="hint-dot"></div>
-        <div class="hint-text">
-          <strong>Demo:</strong> <code>vini@delta.com</code> / <code>admin123</code>
-          (ADM) &nbsp;|&nbsp; <code>luiz@delta.com</code> / <code>senha123</code>
-        </div>
+        <button class="eye-btn" id="eye-btn" onclick="togglePassword()" title="Mostrar/esconder senha" tabindex="-1">
+          <svg id="eye-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- ═══ PRIMEIRO ACESSO ═══ -->
-    <div class="form-panel" id="panel-primeiro">
+    <div class="field-row">
+      <label class="remember"><input type="checkbox" id="chk-remember"/> Lembrar de mim</label>
+    </div>
 
-      <div class="steps">
-        <div class="step active" id="s1"><div class="step-num">1</div><div class="step-label">Dados</div></div>
-        <div class="step-line"></div>
-        <div class="step" id="s2"><div class="step-num">2</div><div class="step-label">Senha</div></div>
-        <div class="step-line"></div>
-        <div class="step" id="s3"><div class="step-num">3</div><div class="step-label">Confirmar</div></div>
+    <button class="btn-primary" id="btn-login">Entrar</button>
+
+    <div class="hint-box">
+      <div class="hint-dot"></div>
+      <div class="hint-text">
+        <strong>Demo:</strong> <code>vini@delta.com</code> / <code>admin123</code>
+        (Admin) &nbsp;|&nbsp; <code>luiz@delta.com</code> / <code>senha123</code>
       </div>
+    </div>
 
-      <!-- Step 1 -->
-      <div class="substep active" id="sub1">
-        <div class="panel-header">
-          <div class="panel-title">Seus dados</div>
-          <div class="panel-sub">Informe seus dados para identificação.</div>
-        </div>
-        <div class="field">
-          <label>Nome completo</label>
-          <input type="text" id="reg-nome" placeholder="João Silva"/>
-        </div>
-        <div class="field">
-          <label>E-mail institucional</label>
-          <input type="email" id="reg-email" placeholder="seu@email.com"/>
-        </div>
-        <button class="btn-primary" onclick="nextStep2()">Continuar</button>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="substep" id="sub2">
-        <div class="panel-header">
-          <div class="panel-title">Crie sua senha</div>
-          <div class="panel-sub">Mínimo 8 caracteres com letras e números.</div>
-        </div>
-        <div class="field">
-          <label>Senha</label>
-          <input type="password" id="reg-senha" placeholder="••••••••"/>
-        </div>
-        <div class="field">
-          <label>Confirmar senha</label>
-          <input type="password" id="reg-senha-confirm" placeholder="••••••••"/>
-        </div>
-        <div style="margin-top:.5rem;display:flex;gap:.75rem;">
-          <button class="btn-primary btn-secondary" onclick="goStep(1)">Voltar</button>
-          <button class="btn-primary" onclick="nextStep3()">Continuar</button>
-        </div>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="substep" id="sub3">
-        <div class="panel-header">
-          <div class="panel-title">Quase lá!</div>
-          <div class="panel-sub">Sua solicitação será enviada ao administrador para aprovação.</div>
-        </div>
-        <div class="hint-box" style="margin-bottom:1.25rem;margin-top:0;">
-          <div class="hint-dot"></div>
-          <div class="hint-text">Por segurança, um administrador precisa aprovar seu cadastro e definir seu setor antes do primeiro login.</div>
-        </div>
-        <div style="display:flex;gap:.75rem;">
-          <button class="btn-primary btn-secondary" onclick="goStep(2)">Voltar</button>
-          <button class="btn-primary" id="btn-enviar-solicitacao">Enviar solicitação</button>
-        </div>
-      </div>
-
+    <div class="access-note">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      O acesso ao sistema é concedido pelo administrador da equipe. Entre em contato caso ainda não tenha credenciais.
     </div>
 
   </div>
 
-  <div class="footer-bar">DeltaV Rocketry · Sistema de Gestão · Versão Frontend-Only (migrar para API)</div>
+  <div class="footer-bar">DeltaV Rocketry · Sistema de Gestão · Versão Alpha Bode</div>
 </div>
 
-<!-- Scripts (ordem importa: data.js primeiro) -->
+<!-- Scripts -->
 <script src="../js/data.js"></script>
 <script src="../js/utils.js"></script>
 <script src="../js/login.js"></script>
