@@ -1,12 +1,8 @@
 /* ═══════════════════════════════════════
-   Delta Rockets · Login / Primeiro Acesso
+   DeltaV Rocketry · Login
    ═══════════════════════════════════════ */
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -26,8 +22,8 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
   background-size: 40px 40px;
   pointer-events: none;
 }
@@ -57,14 +53,19 @@ body {
 }
 
 .logo-img {
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
   object-fit: contain;
-  filter: drop-shadow(0 0 30px rgba(232, 96, 26, 0.3));
+  border-radius: 16px;
+  filter: drop-shadow(0 0 36px rgba(232,96,26,0.25));
+  transition: filter .3s;
+}
+.logo-img:hover {
+  filter: drop-shadow(0 0 52px rgba(232,96,26,0.42));
 }
 
 .team-name {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 500;
   color: #ffffff;
   letter-spacing: 4px;
@@ -72,22 +73,22 @@ body {
 }
 
 .team-sub {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 2px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 2.5px;
   text-transform: uppercase;
-  margin-top: -0.75rem;
+  margin-top: -.75rem;
 }
 
 /* ─── Divisor vertical ─── */
 .divider-v {
   width: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255,0.08);
   align-self: stretch;
   margin: 3rem 0;
 }
 
-/* ─── Painel direito (formulários) ─── */
+/* ─── Painel direito ─── */
 .right-panel {
   width: 420px;
   display: flex;
@@ -97,57 +98,21 @@ body {
   position: relative;
 }
 
-/* ─── Tabs ─── */
-.tabs {
-  display: flex;
-  gap: 0;
+/* ─── Cabeçalho do formulário ─── */
+.login-header {
   margin-bottom: 2rem;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
-}
-
-.tab {
-  flex: 1;
-  padding: 0.6rem 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.35);
-  cursor: pointer;
-  text-align: center;
-  border-bottom: 2px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
-  user-select: none;
-  letter-spacing: 0.3px;
-}
-
-.tab.active {
-  color: #E8601A;
-  border-bottom-color: #E8601A;
-}
-
-/* ─── Painéis de formulário ─── */
-.form-panel {
-  display: none;
-  flex-direction: column;
-}
-
-.form-panel.active {
-  display: flex;
-}
-
-.panel-header {
-  margin-bottom: 1.75rem;
 }
 
 .panel-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 500;
   color: #fff;
-  margin-bottom: 0.3rem;
+  margin-bottom: .35rem;
 }
 
 .panel-sub {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255,255,255,0.38);
   line-height: 1.5;
 }
 
@@ -160,38 +125,55 @@ body {
   display: block;
   font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255,255,255,0.42);
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  margin-bottom: 0.45rem;
+  margin-bottom: .45rem;
 }
 
 .field input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid rgba(255,255,255,0.12);
   border-radius: 8px;
-  padding: 0.72rem 1rem;
+  padding: .75rem 1rem;
   color: #ffffff;
   font-size: 14px;
   font-family: inherit;
   outline: none;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color .2s, background .2s;
 }
 
 .field input:focus {
   border-color: #E8601A;
-  background: rgba(232, 96, 26, 0.06);
+  background: rgba(232,96,26,0.06);
 }
 
-.field input::placeholder {
-  color: rgba(255, 255, 255, 0.18);
-}
+.field input::placeholder { color: rgba(255,255,255,0.18); }
 
-/* ─── Linha lembrar / esqueceu ─── */
+/* ─── Campo senha com botão olho ─── */
+.password-wrap { position: relative; }
+.password-wrap input { padding-right: 2.75rem; }
+
+.eye-btn {
+  position: absolute;
+  right: .85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.3);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color .2s;
+}
+.eye-btn:hover { color: rgba(255,255,255,0.7); }
+
+/* ─── Lembrar de mim ─── */
 .field-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 1.4rem;
 }
@@ -201,31 +183,22 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255,255,255,0.38);
   cursor: pointer;
+  user-select: none;
 }
 
 .remember input[type="checkbox"] {
   accent-color: #E8601A;
   width: 14px;
   height: 14px;
-}
-
-.forgot {
-  font-size: 13px;
-  color: #E8601A;
   cursor: pointer;
-  text-decoration: none;
 }
 
-.forgot:hover {
-  text-decoration: underline;
-}
-
-/* ─── Botões ─── */
+/* ─── Botão principal ─── */
 .btn-primary {
   width: 100%;
-  padding: 0.82rem;
+  padding: .85rem;
   background: #E8601A;
   border: none;
   border-radius: 8px;
@@ -234,33 +207,20 @@ body {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  letter-spacing: 0.3px;
-  transition: background 0.2s, transform 0.1s;
+  letter-spacing: .3px;
+  transition: background .2s, transform .1s, opacity .2s;
 }
 
-.btn-primary:hover {
-  background: #F4813B;
-}
-
-.btn-primary:active {
-  transform: scale(0.98);
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.07);
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
+.btn-primary:hover:not(:disabled) { background: #F4813B; }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ─── Caixa de dica ─── */
 .hint-box {
   margin-top: 1.25rem;
-  padding: 0.8rem 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  padding: .8rem 1rem;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid rgba(255,255,255,0.08);
   border-radius: 8px;
   display: flex;
   align-items: flex-start;
@@ -278,80 +238,19 @@ body {
 
 .hint-text {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.32);
-  line-height: 1.55;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.6;
 }
 
-/* ─── Steps (primeiro acesso) ─── */
-.steps {
+/* ─── Nota de acesso ─── */
+.access-note {
+  margin-top: 1.25rem;
   display: flex;
-  align-items: center;
-  gap: 0;
-  margin-bottom: 1.75rem;
-}
-
-.step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-}
-
-.step-num {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.3);
+  align-items: flex-start;
+  gap: 8px;
   font-size: 12px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.step.active .step-num {
-  background: #E8601A;
-  border-color: #E8601A;
-  color: #fff;
-}
-
-.step.done .step-num {
-  background: rgba(232, 96, 26, 0.2);
-  border-color: #E8601A;
-  color: #E8601A;
-}
-
-.step-label {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.25);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.step.active .step-label {
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.step-line {
-  flex: 1;
-  height: 0.5px;
-  background: rgba(255, 255, 255, 0.1);
-  margin-bottom: 14px;
-}
-
-/* ─── Sub-steps ─── */
-.substep {
-  display: none;
-  flex-direction: column;
-}
-
-.substep.active {
-  display: flex;
+  color: rgba(255,255,255,0.22);
+  line-height: 1.55;
 }
 
 /* ─── Footer ─── */
@@ -362,50 +261,56 @@ body {
   right: 0;
   text-align: center;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.12);
+  color: rgba(255,255,255,0.1);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
 
 /* ─── Responsivo ─── */
 @media (max-width: 768px) {
-  .page {
-    flex-direction: column;
-  }
-
-  .left-panel {
-    padding: 2rem 1.5rem;
-  }
-
-  .divider-v {
-    width: auto;
-    height: 1px;
-    margin: 0 3rem;
-  }
-
-  .right-panel {
-    width: 100%;
-    padding: 2rem 1.5rem;
-  }
+  .page { flex-direction: column; }
+  .left-panel { padding: 2.5rem 1.5rem 1.5rem; }
+  .logo-img { width: 120px; height: 120px; }
+  .divider-v { width: auto; height: 1px; margin: 0 3rem; }
+  .right-panel { width: 100%; padding: 2rem 1.5rem 4rem; }
 }
 
-.logo-emoji {
-  font-size: 80px; line-height: 1;
-  filter: drop-shadow(0 0 30px rgba(232,96,26,.4));
+/* ─── Erros ─── */
+.field input.input-error {
+  border-color: #F09595;
+  background: rgba(240,149,149,0.06);
 }
-
-code {
-  background: rgba(255,255,255,.08);
-  padding: 1px 6px; border-radius: 4px;
-  font-size: 11px; font-family: monospace;
-  color: var(--accent, #E8601A);
+.field-error {
+  font-size: 11px;
+  color: #F09595;
+  margin-top: 5px;
+  display: block;
 }
-
-.field input.input-error { border-color: #F09595; }
-.field-error { font-size: 11px; color: #F09595; margin-top: 4px; display: block; }
 .error-box {
-  background: rgba(240,149,149,.12);
-  border: 0.5px solid #F09595;
-  color: #F09595; font-size: 12px;
-  padding: .6rem 1rem; border-radius: 8px; margin-bottom: .75rem;
+  background: rgba(240,149,149,0.1);
+  border: 0.5px solid rgba(240,149,149,0.4);
+  color: #F09595;
+  font-size: 13px;
+  padding: .65rem 1rem;
+  border-radius: 8px;
+  margin-bottom: .85rem;
+}
+
+/* ─── Animação shake ─── */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+
+/* ─── Code inline ─── */
+code {
+  background: rgba(255,255,255,0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #E8601A;
 }
