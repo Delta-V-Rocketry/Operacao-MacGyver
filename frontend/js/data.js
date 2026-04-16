@@ -3,9 +3,6 @@
    ───────────────────────────────────────────────────────────
    Agora:   localStorage (frontend-only, sem backend)
    Futuro:  trocar cada método por fetch() para a API Flask/FastAPI
-            Exemplo:
-              AGORA:   return this.get('members')
-              FUTURO:  return await fetch('/api/members').then(r=>r.json())
    ═══════════════════════════════════════════════════════════ */
 
 const DB = {
@@ -17,7 +14,6 @@ const DB = {
 
   /* ══════════════════════════════════════════════════════
      SESSÃO / AUTH
-     FUTURO: POST /api/auth/login  →  {token, user}
      ══════════════════════════════════════════════════════ */
   getSession()        { return this._get('session'); },
   setSession(user)    { this._set('session', user); },
@@ -25,7 +21,6 @@ const DB = {
 
   /* ══════════════════════════════════════════════════════
      MEMBROS
-     FUTURO: GET/POST/PUT/DELETE /api/members
      ══════════════════════════════════════════════════════ */
   getMembers()        { return this._get('members') || []; },
   _saveMembers(list)  { this._set('members', list); },
@@ -41,6 +36,9 @@ const DB = {
   updateMember(id, data) {
     const list = this.getMembers().map(m => m.id === id ? { ...m, ...data } : m);
     this._saveMembers(list);
+    // Atualizar sessão se for o próprio usuário
+    const session = this.getSession();
+    if (session && session.id === id) this.setSession({ ...session, ...data });
   },
   deleteMember(id) {
     const m = this.getMembers().find(m => m.id === id);
@@ -51,7 +49,6 @@ const DB = {
 
   /* ══════════════════════════════════════════════════════
      DEMANDAS (Kanban)
-     FUTURO: GET/POST/PUT/DELETE /api/demands
      ══════════════════════════════════════════════════════ */
   getDemands()        { return this._get('demands') || []; },
   _saveDemands(list)  { this._set('demands', list); },
@@ -76,7 +73,6 @@ const DB = {
 
   /* ══════════════════════════════════════════════════════
      EVENTOS (Calendário)
-     FUTURO: GET/POST/PUT/DELETE /api/events
      ══════════════════════════════════════════════════════ */
   getEvents()         { return this._get('events') || []; },
   _saveEvents(list)   { this._set('events', list); },
@@ -94,19 +90,20 @@ const DB = {
     this._saveEvents(list);
   },
   deleteEvent(id) {
+    const ev = this.getEvents().find(e => e.id === id);
     this._saveEvents(this.getEvents().filter(e => e.id !== id));
+    if (ev) this.logActivity(`Evento removido: <strong>${ev.title}</strong>`, 'var(--red)');
   },
 
   /* ══════════════════════════════════════════════════════
      RELATÓRIOS
-     FUTURO: GET/POST/PUT /api/reports
      ══════════════════════════════════════════════════════ */
   getReports()        { return this._get('reports') || []; },
   _saveReports(list)  { this._set('reports', list); },
 
   addReport(data) {
     const list = this.getReports();
-    const report = { ...data, id: this._nextId(list), createdAt: new Date().toISOString(), status: 'pendente', deliveredAt: null, grade: null };
+    const report = { ...data, id: this._nextId(list), createdAt: new Date().toISOString(), status: 'pendente', deliveredAt: null, grade: null, content: '' };
     list.push(report);
     this._saveReports(list);
     return report;
@@ -115,10 +112,42 @@ const DB = {
     const list = this.getReports().map(r => r.id === id ? { ...r, ...data } : r);
     this._saveReports(list);
   },
+  deleteReport(id) {
+    this._saveReports(this.getReports().filter(r => r.id !== id));
+  },
+
+  /* ══════════════════════════════════════════════════════
+     METAS DA EQUIPE
+     ══════════════════════════════════════════════════════ */
+  getGoals()          { return this._get('goals') || []; },
+  _saveGoals(list)    { this._set('goals', list); },
+
+  addGoal(data) {
+    const list = this.getGoals();
+    const goal = {
+      ...data,
+      id: this._nextId(list),
+      createdAt: new Date().toISOString(),
+      progress: data.progress || 0,
+      status: 'ativa'
+    };
+    list.push(goal);
+    this._saveGoals(list);
+    this.logActivity(`Nova meta criada: <strong>${goal.title}</strong>`, 'var(--yellow)');
+    return goal;
+  },
+  updateGoal(id, data) {
+    const list = this.getGoals().map(g => g.id === id ? { ...g, ...data } : g);
+    this._saveGoals(list);
+  },
+  deleteGoal(id) {
+    const g = this.getGoals().find(g => g.id === id);
+    this._saveGoals(this.getGoals().filter(g => g.id !== id));
+    if (g) this.logActivity(`Meta removida: <strong>${g.title}</strong>`, 'var(--red)');
+  },
 
   /* ══════════════════════════════════════════════════════
      ATIVIDADES (log automático)
-     FUTURO: GET /api/activities
      ══════════════════════════════════════════════════════ */
   getActivities()     { return this._get('activities') || []; },
   logActivity(text, color = 'var(--accent)') {
@@ -129,8 +158,7 @@ const DB = {
   },
 
   /* ══════════════════════════════════════════════════════
-     SOLICITAÇÕES DE CADASTRO (primeiro acesso)
-     FUTURO: GET/POST/PUT /api/requests
+     SOLICITAÇÕES DE CADASTRO
      ══════════════════════════════════════════════════════ */
   getRequests()       { return this._get('requests') || []; },
   _saveRequests(list) { this._set('requests', list); },
@@ -154,7 +182,6 @@ const DB = {
 
 /* ══════════════════════════════════════════════════════════
    SEED INICIAL — só popula se banco estiver vazio
-   Remove ou adapte ao migrar para backend real
    ══════════════════════════════════════════════════════════ */
 (function seed() {
   if (DB.getMembers().length > 0) return;
@@ -169,8 +196,8 @@ const DB = {
   ];
 
   const members = [
-    { name:'Vinicius Chaves',   email:'vini@delta.com',   password:'admin123', role:'Líder do setor', sector:'Aviônica', isAdmin:true,  color:COLORS[0] },
-    { name:'Luiz Eduardo',      email:'luiz@delta.com',      password:'senha123', role:'Membro',         sector:'Aviônica', isAdmin:false, color:COLORS[1] },
+    { name:'Marcos Costa',   email:'marcos@delta.com',   password:'admin123', role:'Líder do setor', sector:'Propulsão', isAdmin:true,  color:COLORS[0] },
+    { name:'Ana Lopes',      email:'ana@delta.com',      password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[1] },
     { name:'Pedro Ribeiro',  email:'pedro@delta.com',    password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[2] },
     { name:'Isabela Mendes', email:'isabela@delta.com',  password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[3] },
     { name:'Thiago Souza',   email:'thiago@delta.com',   password:'senha123', role:'Membro',         sector:'Propulsão', isAdmin:false, color:COLORS[4] },
@@ -211,13 +238,29 @@ const DB = {
     list.push(e); DB._saveEvents(list);
   });
 
-  // Seed relatório da semana atual
+  // Seed metas iniciais
+  const goals = [
+    { title:'Concluir injetor v2', description:'Finalizar projeto e testes do injetor de segunda versão', category:'Técnica', dueDate:'2026-05-01', progress:35, priority:'alta' },
+    { title:'Teste estático #5 com sucesso', description:'Realizar teste com todos os sistemas funcionando', category:'Testes', dueDate:'2026-04-22', progress:60, priority:'urgente' },
+    { title:'Reduzir atraso de relatórios', description:'Atingir 100% de entrega dentro do prazo por 4 semanas consecutivas', category:'Gestão', dueDate:'2026-05-15', progress:50, priority:'media' },
+  ];
+  goals.forEach(g => {
+    const list = DB.getGoals();
+    g.id = DB._nextId(list); g.createdAt = new Date().toISOString(); g.status = 'ativa';
+    list.push(g); DB._saveGoals(list);
+  });
+
+  // Seed relatório
   const weekReport = { week: 'Semana 16', weekLabel: '14/04 – 18/04', deadline: '2026-04-18T18:00' };
   const reportList = [];
   DB.getMembers().forEach(m => {
-    reportList.push({ id: DB._nextId(reportList), memberId: m.id, memberName: m.name, sector: m.sector, ...weekReport,
+    reportList.push({
+      id: DB._nextId(reportList), memberId: m.id, memberName: m.name, sector: m.sector, ...weekReport,
       status: m.id === 2 ? 'avaliado' : m.id === 3 ? 'entregue' : m.id === 6 ? 'atrasado' : m.id === 1 ? 'entregue' : 'pendente',
-      deliveredAt: [2,3,1].includes(m.id) ? new Date().toISOString() : null, grade: m.id === 2 ? 'aprovado' : null });
+      deliveredAt: [2,3,1].includes(m.id) ? new Date().toISOString() : null,
+      grade: m.id === 2 ? 'aprovado' : null,
+      content: m.id === 2 ? 'Revisão do bocal convergente concluída. Dados analisados e documentados.' : ''
+    });
   });
   DB._saveReports(reportList);
 
