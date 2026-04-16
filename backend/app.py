@@ -6,16 +6,19 @@ app = Flask(__name__)
 
 import mysql.connector
 
+import os
+
 def get_db_connection():
     return mysql.connector.connect(
-        host="gateway01.us-east-1.prod.aws.tidbcloud.com",
+        host=os.getenv('DB_HOST'),
         port=4000,
-        user="4RRtBp4CJLcko4m.root",
-        password="ZVp6t8YCDyCzJ7x1", 
-        database="joaquim",
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASS'),
+        database=os.getenv('DB_NAME'),
         ssl_ca="/etc/ssl/certs/ca-certificates.crt",
         ssl_verify_cert=True,
         ssl_verify_identity=True
+    )
     )
 
 
