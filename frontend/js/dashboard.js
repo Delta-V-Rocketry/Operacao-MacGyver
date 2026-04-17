@@ -1225,4 +1225,5 @@ function showGlobalLoading(show) {
   } else {
     if (spinner) spinner.remove();
   }
+  
 }
