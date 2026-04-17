@@ -1,6 +1,7 @@
 # ═══════════════════════════════════════════════════════════
 #  DeltaV Rocketry · Camada de banco de dados
-#  Credenciais via variáveis de ambiente (.env / Azure App Settings)
+#  Banco: joaquim (TiDB Cloud)
+#  Tabela principal: membros
 # ═══════════════════════════════════════════════════════════
 
 import os
@@ -14,57 +15,27 @@ load_dotenv()
 def conectar():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT", 3306)),
+        port=int(os.getenv("DB_PORT", 4000)),  # TiDB Cloud usa porta 4000
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASS"),
-        database=os.getenv("DB_NAME"),
+        database=os.getenv("DB_NAME"),         # joaquim
         ssl_ca="/etc/ssl/certs/ca-certificates.crt",
         ssl_verify_cert=True,
         ssl_verify_identity=True,
     )
 
 
-# ── Usuários ─────────────────────────────────────────────
-
-def criar_usuario(nome, email, senha_plana, setor, role="user"):
-    """
-    Insere um novo usuário com senha hasheada.
-    role: 'user' | 'leader' | 'admin'
-    """
-    senha_hash = generate_password_hash(senha_plana)
-    is_admin   = role == "admin"
-    is_leader  = role == "leader"
-
-    con = conectar()
-    cursor = con.cursor()
-    try:
-        sql = """
-            INSERT INTO membros (nome, email, senha, setor, is_admin, is_leader, status)
-            VALUES (%s, %s, %s, %s, %s, %s, 'pendente')
-        """
-        cursor.execute(sql, (nome, email, senha_hash, setor, is_admin, is_leader))
-        con.commit()
-        return True
-    except mysql.connector.IntegrityError:
-        return False  # email duplicado
-    finally:
-        cursor.close()
-        con.close()
-
+# ── Usuários / Membros ────────────────────────────────────
 
 def verificar_login(email, senha_plana):
-    """
-    Retorna dict com dados do usuário ou {'erro': '...'}.
-    """
     con = conectar()
     cursor = con.cursor(dictionary=True)
     try:
-        sql = """
+        cursor.execute("""
             SELECT id, nome, email, senha, setor, is_admin, is_leader, status
             FROM membros
             WHERE email = %s
-        """
-        cursor.execute(sql, (email,))
+        """, (email,))
         usuario = cursor.fetchone()
     finally:
         cursor.close()
@@ -76,10 +47,10 @@ def verificar_login(email, senha_plana):
     if not check_password_hash(usuario["senha"], senha_plana):
         return {"erro": "E-mail ou senha incorretos."}
 
-    if usuario["status"] == "inativo":
+    if usuario.get("status") == "inativo":
         return {"erro": "Conta inativa. Fale com a liderança."}
 
-    if usuario["status"] == "pendente":
+    if usuario.get("status") == "pendente":
         return {"erro": "Cadastro aguardando aprovação do administrador."}
 
     return {
@@ -87,12 +58,31 @@ def verificar_login(email, senha_plana):
         "nome":     usuario["nome"],
         "email":    usuario["email"],
         "setor":    usuario["setor"],
-        "isAdmin":  bool(usuario["is_admin"]),
-        "isLeader": bool(usuario["is_leader"]),
+        "isAdmin":  bool(usuario.get("is_admin", False)),
+        "isLeader": bool(usuario.get("is_leader", False)),
     }
 
 
-# ── Membros ───────────────────────────────────────────────
+def criar_usuario(nome, email, senha_plana, setor, role="user"):
+    senha_hash = generate_password_hash(senha_plana)
+    is_admin  = role == "admin"
+    is_leader = role == "leader"
+
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO membros (nome, email, senha, setor, is_admin, is_leader, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'ativo')
+        """, (nome, email, senha_hash, setor, is_admin, is_leader))
+        con.commit()
+        return True
+    except mysql.connector.IntegrityError:
+        return False
+    finally:
+        cursor.close()
+        con.close()
+
 
 def listar_membros():
     con = conectar()
@@ -112,9 +102,13 @@ def listar_membros():
 def atualizar_membro(membro_id, dados):
     campos  = []
     valores = []
-    for chave in ("nome", "email", "setor", "status", "is_admin", "is_leader", "role"):
+    mapa = {
+        "nome": "nome", "email": "email", "setor": "setor",
+        "status": "status", "is_admin": "is_admin", "is_leader": "is_leader"
+    }
+    for chave, coluna in mapa.items():
         if chave in dados:
-            campos.append(f"{chave} = %s")
+            campos.append(f"{coluna} = %s")
             valores.append(dados[chave])
     if "senha" in dados and dados["senha"]:
         campos.append("senha = %s")
@@ -125,7 +119,9 @@ def atualizar_membro(membro_id, dados):
     con = conectar()
     cursor = con.cursor()
     try:
-        cursor.execute(f"UPDATE membros SET {', '.join(campos)} WHERE id = %s", valores)
+        cursor.execute(
+            f"UPDATE membros SET {', '.join(campos)} WHERE id = %s", valores
+        )
         con.commit()
         return True
     finally:
@@ -196,7 +192,9 @@ def atualizar_demanda(demanda_id, dados):
     con = conectar()
     cursor = con.cursor()
     try:
-        cursor.execute(f"UPDATE tarefas SET {', '.join(campos)} WHERE id = %s", valores)
+        cursor.execute(
+            f"UPDATE tarefas SET {', '.join(campos)} WHERE id = %s", valores
+        )
         con.commit()
         return True
     finally:
