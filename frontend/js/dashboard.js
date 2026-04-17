@@ -317,16 +317,23 @@ function openNewDemand() {
           </select>
         </div>
       </div>`,
-    onConfirm: () => {
+    onConfirm: async () => {
       const title = document.getElementById('f-title').value.trim();
       if (!title) { toast('Informe o título da demanda.', 'error'); return; }
-      DB.addDemand({
+      const payload = {
         title,
         priority:   document.getElementById('f-priority').value,
         assigneeId: parseInt(document.getElementById('f-assignee').value) || null,
         dueDate:    document.getElementById('f-due').value,
         status:     document.getElementById('f-status').value,
-      });
+      };
+      try {
+        await API.addDemand(payload);
+        DB.logActivity(`Nova demanda criada: <strong>${title}</strong>`, 'var(--accent)');
+        // Recarrega demandas da API
+        const demands = await API.getDemands();
+        DB._set('demands', demands);
+      } catch(e) { toast('Erro ao criar demanda.', 'error'); return; }
       closeModal(); toast('Demanda criada!'); renderKanban(); renderDashboard();
     }, confirmText: 'Criar demanda'
   });
@@ -362,15 +369,20 @@ function editDemand(id) {
           </select>
         </div>
       </div>`,
-    onConfirm: () => {
+    onConfirm: async () => {
       const title = document.getElementById('f-title').value.trim();
       if (!title) { toast('Informe o título.', 'error'); return; }
-      DB.updateDemand(id, {
+      const payload = {
         title, priority: document.getElementById('f-priority').value,
         assigneeId: parseInt(document.getElementById('f-assignee').value) || null,
         dueDate: document.getElementById('f-due').value,
         status:  document.getElementById('f-status').value,
-      });
+      };
+      try {
+        await API.updateDemand(id, payload);
+        const demands = await API.getDemands();
+        DB._set('demands', demands);
+      } catch(e) { toast('Erro ao atualizar demanda.', 'error'); return; }
       closeModal(); toast('Demanda atualizada!'); renderKanban(); renderDashboard();
     }, confirmText: 'Salvar'
   });
@@ -381,8 +393,14 @@ function deleteDemandConfirm(id) {
   if (!isAdmin() && !(isLeader() && demandInMySector(d))) {
     toast('Sem permissão para excluir esta demanda.', 'error'); return;
   }
-  confirmDialog(`Excluir "<strong>${d?.title}</strong>"?`, () => {
-    DB.deleteDemand(id); closeModal(); toast('Demanda excluída.', 'info'); renderKanban(); renderDashboard();
+  confirmDialog(`Excluir "<strong>${d?.title}</strong>"?`, async () => {
+    try {
+      await API.deleteDemand(id);
+      const demands = await API.getDemands();
+      DB._set('demands', demands);
+      DB.logActivity(`Demanda removida: <strong>${d?.title}</strong>`, 'var(--red)');
+    } catch(e) { toast('Erro ao excluir demanda.', 'error'); return; }
+    closeModal(); toast('Demanda excluída.', 'info'); renderKanban(); renderDashboard();
   });
 }
 
@@ -462,7 +480,7 @@ function openNewEvent(dateStr = '') {
           <option value="red">🔴 Vermelho (urgente)</option>
         </select>
       </div>`,
-    onConfirm: () => {
+    onConfirm: async () => {
       const title = document.getElementById('f-etitle').value.trim();
       const date  = document.getElementById('f-edate').value;
       if (!title || !date) { toast('Preencha título e data.', 'error'); return; }
@@ -472,7 +490,11 @@ function openNewEvent(dateStr = '') {
         pink:  { color:'var(--pink)',   bg:'var(--pink-bg)' },     green: { color:'var(--green)',  bg:'var(--green-bg)' },
         red:   { color:'var(--red)',    bg:'var(--red-bg)' },
       };
-      DB.addEvent({ title, date, ...colorMap[colorKey] });
+      try {
+        await API.addEvent({ title, date, ...colorMap[colorKey] });
+        const events = await API.getEvents();
+        DB._set('events', events);
+      } catch(e) { toast('Erro ao criar evento.', 'error'); return; }
       closeModal(); toast('Evento adicionado!'); renderCalendar();
     }, confirmText: 'Adicionar'
   });
@@ -514,8 +536,13 @@ function editEvent(id) {
 function deleteEventConfirm(id) {
   if (!canManageSector()) return;
   const e = DB.getEvents().find(e => e.id === id);
-  confirmDialog(`Remover evento "<strong>${e?.title}</strong>"?`, () => {
-    DB.deleteEvent(id); closeModal(); toast('Evento removido.', 'info'); renderCalendar();
+  confirmDialog(`Remover evento "<strong>${e?.title}</strong>"?`, async () => {
+    try {
+      await API.deleteEvent(id);
+      const events = await API.getEvents();
+      DB._set('events', events);
+    } catch(err) { toast('Erro ao remover evento.', 'error'); return; }
+    closeModal(); toast('Evento removido.', 'info'); renderCalendar();
   });
 }
 
@@ -597,10 +624,8 @@ function openNewMember() {
         <div class="field"><label>Cargo / Função</label><input id="f-mrole" type="text" placeholder="Membro, Líder..."></div>
         <div class="field"><label>Setor</label>
           <select id="f-msector">
-            <option>Propulsão</option><option>Aviônica</option><option>P&D</option>
-            <option>Aerodinâmica</option><option>Recuperação</option><option>SegOps</option>
-            <option>Marketing</option><option>Gestão</option><option>Financeiro</option>
-            <option>Relações</option>
+            <option>Propulsão</option><option>Estrutura</option><option>Eletrônica</option>
+            <option>Aerodinâmica</option><option>Software</option><option>Gestão</option>
           </select>
         </div>
         <div class="field"><label>Perfil de acesso</label>
@@ -611,21 +636,25 @@ function openNewMember() {
           </select>
         </div>
       </div>`,
-    onConfirm: () => {
+    onConfirm: async () => {
       const name  = document.getElementById('f-mname').value.trim();
       const email = document.getElementById('f-memail').value.trim();
       const pass  = document.getElementById('f-mpass').value.trim();
       if (!name || !email || !pass) { toast('Preencha nome, e-mail e senha.', 'error'); return; }
       if (pass.length < 6) { toast('Senha deve ter mínimo 6 caracteres.', 'error'); return; }
       const level = document.getElementById('f-mlevel').value;
-      DB.addMember({
-        name, email, password: pass,
-        role:     document.getElementById('f-mrole').value.trim() || 'Membro',
-        sector:   document.getElementById('f-msector').value,
-        isAdmin:  level === 'admin',
-        isLeader: level === 'leader',
-        color:    avatarColor(DB.getMembers().length + 1),
-      });
+      try {
+        await API.addMember({
+          name, email, password: pass,
+          role:     document.getElementById('f-mrole').value.trim() || 'Membro',
+          sector:   document.getElementById('f-msector').value,
+          isAdmin:  level === 'admin',
+          isLeader: level === 'leader',
+        });
+        const members = await API.getMembers();
+        DB._set('members', members);
+        DB.logActivity(`<strong>${name}</strong> foi adicionado como membro`, 'var(--green)');
+      } catch(e) { toast(e.message || 'Erro ao adicionar membro.', 'error'); return; }
       closeModal(); toast('Membro adicionado!'); renderMembers(); renderDashboard();
     }, confirmText: 'Adicionar'
   });
@@ -646,7 +675,7 @@ function editMember(id) {
         <div class="field"><label>Cargo</label><input id="f-mrole" type="text" value="${m.role||''}"></div>
         <div class="field"><label>Setor</label>
           <select id="f-msector">
-            ${['Propulsão','Estrutura e Aerodinâmica','Aviônica','P&D', 'SegOp','Marketing','Financeiro','Recuperação','Gestão','Relações'].map(s=>`<option ${m.sector===s?'selected':''}>${s}</option>`).join('')}
+            ${['Propulsão','Estrutura','Eletrônica','Aerodinâmica','Software','Gestão'].map(s=>`<option ${m.sector===s?'selected':''}>${s}</option>`).join('')}
           </select>
         </div>
         <div class="field"><label>Perfil de acesso</label>
@@ -657,21 +686,28 @@ function editMember(id) {
           </select>
         </div>
       </div>`,
-    onConfirm: () => {
+    onConfirm: async () => {
       const name = document.getElementById('f-mname').value.trim();
       const pass = document.getElementById('f-mpass').value.trim();
       if (!name) { toast('Informe o nome.', 'error'); return; }
       if (pass && pass.length < 6) { toast('Senha deve ter mínimo 6 caracteres.', 'error'); return; }
       const level = document.getElementById('f-mlevel').value;
       const update = {
-        name, email: document.getElementById('f-memail').value.trim(),
-        role:     document.getElementById('f-mrole').value.trim(),
-        sector:   document.getElementById('f-msector').value,
+        name,  email:    document.getElementById('f-memail').value.trim(),
+        role:  document.getElementById('f-mrole').value.trim(),
+        sector: document.getElementById('f-msector').value,
         isAdmin:  level === 'admin',
         isLeader: level === 'leader',
       };
       if (pass) update.password = pass;
-      DB.updateMember(id, update);
+      try {
+        await API.updateMember(id, update);
+        const members = await API.getMembers();
+        DB._set('members', members);
+        // Atualiza sessão se for o próprio usuário
+        const s = DB.getSession();
+        if (s && s.id === id) DB.setSession({ ...s, ...update });
+      } catch(e) { toast('Erro ao atualizar membro.', 'error'); return; }
       closeModal(); toast('Membro atualizado!'); renderMembers();
     }, confirmText: 'Salvar'
   });
@@ -681,8 +717,14 @@ function deleteMemberConfirm(id) {
   if (!isAdmin()) { toast('Apenas administradores podem remover membros.', 'error'); return; }
   const m = DB.getMemberById(id);
   if (m?.id === currentUser()?.id) { toast('Você não pode remover a si mesmo.', 'error'); return; }
-  confirmDialog(`Remover "<strong>${m?.name}</strong>" da equipe?`, () => {
-    DB.deleteMember(id); closeModal(); toast('Membro removido.', 'info'); renderMembers(); renderDashboard();
+  confirmDialog(`Remover "<strong>${m?.name}</strong>" da equipe?`, async () => {
+    try {
+      await API.deleteMember(id);
+      const members = await API.getMembers();
+      DB._set('members', members);
+      DB.logActivity(`<strong>${m?.name}</strong> foi removido`, 'var(--red)');
+    } catch(e) { toast('Erro ao remover membro.', 'error'); return; }
+    closeModal(); toast('Membro removido.', 'info'); renderMembers(); renderDashboard();
   });
 }
 
@@ -1073,7 +1115,7 @@ function approveRequest(id) {
         <div class="field"><label>Cargo</label><input id="f-mrole" type="text" value="Membro"></div>
         <div class="field"><label>Setor</label>
           <select id="f-msector">
-            ${['Propulsão','Estrutura e Aerodinâmica','Aviônica','P&D', 'SegOp','Marketing','Financeiro','Recuperação','Gestão','Relações'].map(s=>`<option>${s}</option>`).join('')}
+            ${['Propulsão','Estrutura','Eletrônica','Aerodinâmica','Software','Gestão'].map(s=>`<option>${s}</option>`).join('')}
           </select>
         </div>
         <div class="field"><label>Perfil de acesso</label>
@@ -1116,17 +1158,71 @@ function logout() {
 }
 
 /* ══════════════════════════════════════════════════════════
-   INIT
+   INIT — carrega dados da API e inicializa o dashboard
    ══════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   renderSidebarUser();
+
+  // Mostra loading enquanto busca dados da API
+  showGlobalLoading(true);
+
+  try {
+    // Carrega membros, demandas e eventos em paralelo
+    const [members, demands, events] = await Promise.all([
+      API.getMembers(),
+      API.getDemands(),
+      API.getEvents(),
+    ]);
+
+    // Salva no localStorage para que o restante do dashboard.js
+    // continue funcionando com DB.getMembers() etc.
+    DB._set('members', members);
+    DB._set('demands', demands);
+    DB._set('events',  events);
+
+  } catch (err) {
+    console.error('[INIT] Erro ao carregar dados da API:', err);
+    toast('Não foi possível conectar ao servidor. Verifique sua conexão.', 'error');
+    // Continua com os dados que já estiverem no localStorage (se houver)
+  }
+
+  showGlobalLoading(false);
+
+  // Renderiza tudo
   renderDashboard();
   renderCalendar();
 
-  // Botões de ação iniciais
+  // Visibilidade dos botões de ação
   const el = id => document.getElementById(id);
   if (el('btn-new-demand')) el('btn-new-demand').style.display = canManageSector() ? 'flex' : 'none';
   if (el('btn-new-event'))  el('btn-new-event').style.display  = canManageSector() ? 'flex' : 'none';
   if (el('btn-new-member')) el('btn-new-member').style.display = isAdmin() ? 'flex' : 'none';
   if (el('btn-new-report')) el('btn-new-report').style.display = isAdmin() ? 'flex' : 'none';
 });
+
+/* ── Spinner global ─────────────────────────────────────── */
+function showGlobalLoading(show) {
+  let spinner = document.getElementById('global-spinner');
+  if (show) {
+    if (spinner) return;
+    spinner = document.createElement('div');
+    spinner.id = 'global-spinner';
+    spinner.innerHTML = `
+      <div style="
+        position:fixed;inset:0;z-index:9999;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        background:var(--bg-primary,#0f1923);gap:1rem;">
+        <div style="
+          width:40px;height:40px;border-radius:50%;
+          border:3px solid rgba(255,255,255,.1);
+          border-top-color:var(--accent,#E8601A);
+          animation:spin .8s linear infinite;">
+        </div>
+        <span style="font-size:13px;color:var(--text-muted,#666);">Carregando dados...</span>
+      </div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+    document.body.appendChild(spinner);
+  } else {
+    if (spinner) spinner.remove();
+  }
+}
