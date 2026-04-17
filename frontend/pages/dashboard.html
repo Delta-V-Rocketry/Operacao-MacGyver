@@ -54,7 +54,6 @@
 
     <div class="nav-section-label" style="margin-top:.5rem;">Sistema</div>
 
-    <!-- Visível só para admins -->
     <a class="nav-item" data-page="metas" onclick="switchPage('metas')" style="display:none;">
       <span class="nav-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></span>
       Metas da Equipe
@@ -239,7 +238,7 @@
       </div>
     </section>
 
-    <!-- ════════════════════ METAS DA EQUIPE (Admin) ════════════════════ -->
+    <!-- ════════════════════ METAS DA EQUIPE ════════════════════ -->
     <section class="page-section" id="page-metas">
       <div class="page-toolbar">
         <div style="display:flex;align-items:center;gap:1.5rem;">
@@ -273,7 +272,6 @@
         <div class="page-toolbar-info">Painel do Administrador</div>
       </div>
 
-      <!-- Stats resumo admin -->
       <div class="stats-grid" style="margin-bottom:1.5rem;">
         <div class="stat-card">
           <div class="stat-label"><span class="stat-icon icon-purple">👥</span> Membros ativos</div>
@@ -309,7 +307,7 @@
             <button class="btn btn-ghost" onclick="switchPage('relatorios');setTimeout(openNewReport,100)">+ Criar ciclo de relatórios</button>
             <button class="btn btn-ghost" onclick="switchPage('metas');setTimeout(openNewGoal,100)">+ Criar meta da equipe</button>
             <button class="btn btn-ghost" onclick="switchPage('demandas');setTimeout(openNewDemand,100)">+ Nova demanda</button>
-            <button class="btn btn-ghost" style="color:var(--red);border-color:var(--red);margin-top:.5rem;" onclick="confirmResetData()">⚠ Resetar todos os dados</button>
+            <button class="btn btn-ghost" style="color:var(--red);border-color:var(--red);margin-top:.5rem;" onclick="confirmResetData()">⚠ Resetar dados locais</button>
           </div>
         </div>
       </div>
@@ -318,26 +316,30 @@
   </div><!-- .content -->
 </div><!-- .main -->
 
-<!-- Scripts (ordem importa) -->
+<!-- ═══════════════════════════════════════════════════════
+     Scripts — ORDEM IMPORTA:
+     1. data.js    → DB helpers + localStorage (sessão)
+     2. utils.js   → toast, modal, avatarColor, getInitials
+     3. api.js     → chamadas REST ao back-end Flask
+     4. dashboard.js → lógica do painel
+     ═══════════════════════════════════════════════════════ -->
 <script src="../js/data.js"></script>
 <script src="../js/utils.js"></script>
+<script src="../js/api.js"></script>
 <script src="../js/dashboard.js"></script>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const u = DB.getSession();
-    // Link de metas no dashboard só aparece para admins
-    const goalsLink = document.getElementById('dash-goals-link');
-    if (goalsLink && u?.isAdmin) goalsLink.style.display = 'block';
-  });
-
   function confirmResetData() {
-    confirmDialog('⚠ <strong>Isso apagará TODOS os dados</strong> (membros, demandas, eventos, metas, relatórios). Não pode ser desfeito!', () => {
-      ['dr_members','dr_demands','dr_events','dr_reports','dr_activities','dr_requests','dr_session','dr_goals']
-        .forEach(k => localStorage.removeItem(k));
-      closeModal();
-      window.location.href = 'login.html';
-    });
+    confirmDialog(
+      '⚠ <strong>Isso apagará TODOS os dados em cache local</strong>. Os dados no servidor não serão afetados.',
+      () => {
+        ['dr_members','dr_demands','dr_events','dr_reports',
+         'dr_activities','dr_requests','dr_session','dr_goals']
+          .forEach(k => localStorage.removeItem(k));
+        closeModal();
+        window.location.href = 'login.html';
+      }
+    );
   }
 </script>
 
