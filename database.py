@@ -1,78 +1,259 @@
-# import mysql.connector
-# from dotenv import load_dotenv
-# import os
+# ═══════════════════════════════════════════════════════════
+#  DeltaV Rocketry · Camada de banco de dados
+#  Credenciais via variáveis de ambiente (.env / Azure App Settings)
+# ═══════════════════════════════════════════════════════════
 
-# load_dotenv()
-
-# def get_connection():
-#     return mysql.connector.connect(
-#         host=os.getenv("DB_HOST"),
-#         user=os.getenv("DB_USER"),
-#         password=os.getenv("DB_PASSWORD"),
-#         database=os.getenv("DB_NAME")
-#     )
-
+import os
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def conectar():
-    
     return mysql.connector.connect(
-        host="localhost",       
-        user="root",            
-        password="dudu2303",   
-        database="delta_rockets"
+        host=os.getenv("DB_HOST"),
+        port=int(os.getenv("DB_PORT", 3306)),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASS"),
+        database=os.getenv("DB_NAME"),
+        ssl_ca="/etc/ssl/certs/ca-certificates.crt",
+        ssl_verify_cert=True,
+        ssl_verify_identity=True,
     )
 
-def criar_usuario(nome, email, senha_plana, setor):
-    
-    senha_criptografada = generate_password_hash(senha_plana)
-    
+
+# ── Usuários ─────────────────────────────────────────────
+
+def criar_usuario(nome, email, senha_plana, setor, role="user"):
+    """
+    Insere um novo usuário com senha hasheada.
+    role: 'user' | 'leader' | 'admin'
+    """
+    senha_hash = generate_password_hash(senha_plana)
+    is_admin   = role == "admin"
+    is_leader  = role == "leader"
+
     con = conectar()
     cursor = con.cursor()
-    
     try:
-        
-        
-        sql = "INSERT INTO usuarios (nome, email, senha_hash, setor) VALUES (%s, %s, %s, %s)"
-        cursor.execute(sql, (nome, email, senha_criptografada, setor))
-        
+        sql = """
+            INSERT INTO membros (nome, email, senha, setor, is_admin, is_leader, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'pendente')
+        """
+        cursor.execute(sql, (nome, email, senha_hash, setor, is_admin, is_leader))
         con.commit()
-        return True 
-        
+        return True
     except mysql.connector.IntegrityError:
-        return False 
-        
+        return False  # email duplicado
     finally:
         cursor.close()
         con.close()
 
-def verificar_login(email, senha_plana):
-    """Verifica a senha e devolve os dados, incluindo se é admin"""
-    con = conectar()
-    cursor = con.cursor(dictionary=True) # dictionary=True faz o resultado vir com os nomes das colunas!
-    
-    sql = "SELECT id, nome, senha_hash, is_admin, status FROM usuarios WHERE email = %s"
-    cursor.execute(sql, (email,))
-    usuario = cursor.fetchone()
-    
-    cursor.close()
-    con.close()
 
-    if usuario:
-        
-        if check_password_hash(usuario['senha_hash'], senha_plana):
-            
-            
-            if usuario['status'] == 'inativo':
-                return {"erro": "Conta inativa. Fale com a liderança."}
-                
-            
-            return {
-                "id": usuario['id'],
-                "nome": usuario['nome'],
-                "is_admin": bool(usuario['is_admin'])
-            }
-            
-    return {"erro": "Email ou senha incorretos."}
+def verificar_login(email, senha_plana):
+    """
+    Retorna dict com dados do usuário ou {'erro': '...'}.
+    """
+    con = conectar()
+    cursor = con.cursor(dictionary=True)
+    try:
+        sql = """
+            SELECT id, nome, email, senha, setor, is_admin, is_leader, status
+            FROM membros
+            WHERE email = %s
+        """
+        cursor.execute(sql, (email,))
+        usuario = cursor.fetchone()
+    finally:
+        cursor.close()
+        con.close()
+
+    if not usuario:
+        return {"erro": "E-mail ou senha incorretos."}
+
+    if not check_password_hash(usuario["senha"], senha_plana):
+        return {"erro": "E-mail ou senha incorretos."}
+
+    if usuario["status"] == "inativo":
+        return {"erro": "Conta inativa. Fale com a liderança."}
+
+    if usuario["status"] == "pendente":
+        return {"erro": "Cadastro aguardando aprovação do administrador."}
+
+    return {
+        "id":       usuario["id"],
+        "nome":     usuario["nome"],
+        "email":    usuario["email"],
+        "setor":    usuario["setor"],
+        "isAdmin":  bool(usuario["is_admin"]),
+        "isLeader": bool(usuario["is_leader"]),
+    }
+
+
+# ── Membros ───────────────────────────────────────────────
+
+def listar_membros():
+    con = conectar()
+    cursor = con.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id, nome, email, setor, is_admin, is_leader, status
+            FROM membros
+            ORDER BY nome
+        """)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        con.close()
+
+
+def atualizar_membro(membro_id, dados):
+    campos  = []
+    valores = []
+    for chave in ("nome", "email", "setor", "status", "is_admin", "is_leader", "role"):
+        if chave in dados:
+            campos.append(f"{chave} = %s")
+            valores.append(dados[chave])
+    if "senha" in dados and dados["senha"]:
+        campos.append("senha = %s")
+        valores.append(generate_password_hash(dados["senha"]))
+    if not campos:
+        return False
+    valores.append(membro_id)
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute(f"UPDATE membros SET {', '.join(campos)} WHERE id = %s", valores)
+        con.commit()
+        return True
+    finally:
+        cursor.close()
+        con.close()
+
+
+def deletar_membro(membro_id):
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute("DELETE FROM membros WHERE id = %s", (membro_id,))
+        con.commit()
+        return True
+    finally:
+        cursor.close()
+        con.close()
+
+
+# ── Demandas ──────────────────────────────────────────────
+
+def listar_demandas():
+    con = conectar()
+    cursor = con.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT t.*, m.nome AS responsavel_nome, m.setor AS responsavel_setor
+            FROM tarefas t
+            LEFT JOIN membros m ON t.responsavel_id = m.id
+            ORDER BY t.criado_em DESC
+        """)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        con.close()
+
+
+def criar_demanda(dados):
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO tarefas (titulo, descricao, setor, prioridade, status, responsavel_id, prazo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            dados.get("titulo"), dados.get("descricao"),
+            dados.get("setor"),  dados.get("prioridade", "media"),
+            dados.get("status", "aberta"),
+            dados.get("responsavel_id"), dados.get("prazo"),
+        ))
+        con.commit()
+        return cursor.lastrowid
+    finally:
+        cursor.close()
+        con.close()
+
+
+def atualizar_demanda(demanda_id, dados):
+    campos  = []
+    valores = []
+    for chave in ("titulo", "descricao", "setor", "prioridade", "status", "responsavel_id", "prazo"):
+        if chave in dados:
+            campos.append(f"{chave} = %s")
+            valores.append(dados[chave])
+    if not campos:
+        return False
+    valores.append(demanda_id)
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute(f"UPDATE tarefas SET {', '.join(campos)} WHERE id = %s", valores)
+        con.commit()
+        return True
+    finally:
+        cursor.close()
+        con.close()
+
+
+def deletar_demanda(demanda_id):
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute("DELETE FROM tarefas WHERE id = %s", (demanda_id,))
+        con.commit()
+        return True
+    finally:
+        cursor.close()
+        con.close()
+
+
+# ── Eventos ───────────────────────────────────────────────
+
+def listar_eventos():
+    con = conectar()
+    cursor = con.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM eventos ORDER BY data_inicio")
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        con.close()
+
+
+def criar_evento(dados):
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO eventos (titulo, descricao, setor, data_inicio, data_fim, criado_por)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            dados.get("titulo"), dados.get("descricao"), dados.get("setor"),
+            dados.get("data_inicio"), dados.get("data_fim"), dados.get("criado_por"),
+        ))
+        con.commit()
+        return cursor.lastrowid
+    finally:
+        cursor.close()
+        con.close()
+
+
+def deletar_evento(evento_id):
+    con = conectar()
+    cursor = con.cursor()
+    try:
+        cursor.execute("DELETE FROM eventos WHERE id = %s", (evento_id,))
+        con.commit()
+        return True
+    finally:
+        cursor.close()
+        con.close()
