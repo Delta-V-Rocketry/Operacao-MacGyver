@@ -1,9 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
    DeltaV Rocketry · Login
-   ───────────────────────────────────────────────────────────
-   Cadastro removido: acesso concedido internamente pelo admin.
-   FUTURO: substituir validação local por fetch() para API:
-     POST /api/auth/login → { token, user }
+   Chama o back-end Flask via api.js
    ═══════════════════════════════════════════════════════════ */
 
 // Redireciona se já está logado
@@ -28,7 +25,7 @@ document.getElementById('login-senha').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const senha = document.getElementById('login-senha').value;
 
@@ -37,44 +34,35 @@ function doLogin() {
   if (!email) { showFieldError('login-email', 'Informe o e-mail.'); return; }
   if (!senha) { showFieldError('login-senha', 'Informe a senha.');  return; }
 
-  // Loading state
   const btn = document.getElementById('btn-login');
   btn.textContent = 'Entrando...';
   btn.disabled = true;
 
-  // Simula latência de rede (remover ao integrar com API real)
-  setTimeout(() => {
-    /* ── FUTURO: substituir bloco abaixo por:
-       const res = await fetch('/api/auth/login', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ email, password: senha })
-       });
-       const { token, user } = await res.json();
-       if (!res.ok) { showLoginError(user.message); resetBtn(); return; }
-       DB.setSession(user);
-       window.location.href = 'dashboard.html';
-    ── */
-    const user = DB.getMembers().find(m => m.email === email && m.password === senha);
+  try {
+    // Chama POST /login no back-end Flask
+    const user = await API.login(email, senha);
 
-    if (!user) {
-      showLoginError('E-mail ou senha incorretos.');
-      resetBtn(); return;
-    }
-    if (!user.active) {
-      showLoginError('Sua conta está inativa. Fale com o administrador.');
-      resetBtn(); return;
-    }
+    // Salva sessão no localStorage no formato que o dashboard espera
+    const session = {
+      id:       user.id,
+      name:     user.nome   || user.name,
+      email:    user.email,
+      sector:   user.setor  || user.sector,
+      role:     user.role   || 'Membro',
+      isAdmin:  !!user.isAdmin,
+      isLeader: !!user.isLeader,
+      active:   true,
+      color:    avatarColor(user.id),
+    };
 
-    DB.setSession(user);
+    DB.setSession(session);
     window.location.href = 'dashboard.html';
-  }, 400);
-}
 
-function resetBtn() {
-  const btn = document.getElementById('btn-login');
-  btn.textContent = 'Entrar';
-  btn.disabled = false;
+  } catch (err) {
+    showLoginError(err.message || 'Erro ao conectar com o servidor.');
+    btn.textContent = 'Entrar';
+    btn.disabled = false;
+  }
 }
 
 /* ── Helpers de erro ────────────────────────────────────── */
@@ -100,7 +88,6 @@ function showLoginError(msg) {
     document.getElementById('btn-login').before(box);
   }
   box.textContent = msg;
-  // Animação de shake
   box.style.animation = 'none';
   requestAnimationFrame(() => { box.style.animation = 'shake .35s ease'; });
 }
